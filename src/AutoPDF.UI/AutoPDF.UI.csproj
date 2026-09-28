@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    WPF user interface (Uzbek). The views are composed in C# (no XAML), so every binding target,
+    style and template is checked by the compiler and there are no runtime XAML parse errors inside
+    AutoCAD. The project has no AutoCAD references: windows can be previewed with tools/AutoPDF.UiDemo.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>AutoPDF.UI</RootNamespace>
+    <AssemblyName>AutoPDF.UI</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Windows.Forms" />
+    <!-- Windows.Data.Pdf (built into Windows 10/11) renders the PDF preview; no native PDF library needed. -->
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AutoPDF.Core\AutoPDF.Core.csproj" />
+  </ItemGroup>
+</Project>

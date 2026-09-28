@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AutoPDF Pro — Autodesk application bundle for AutoCAD 2024 (R24.3), Windows 64-bit.
+  Install by copying the whole AutoPDFPro.bundle folder to one of:
+    %ProgramData%\Autodesk\ApplicationPlugins   (all users, trusted location — recommended)
+    %AppData%\Autodesk\ApplicationPlugins       (current user)
+  See README.md / installer\install.ps1.
+-->
+<ApplicationPackage
+    SchemaVersion="1.0"
+    AutodeskProduct="AutoCAD"
+    ProductType="Application"
+    Name="AutoPDF Pro"
+    Description="AutoCAD listlarini (ramkalarni) avtomatik topib, har birini alohida PDF ga chiqarish."
+    AppVersion="2.0.0"
+    FriendlyVersion="2.0.0"
+    Author="AutoPDF Pro"
+    ProductCode="{F3C1626A-8269-442B-A3AC-1C878B083C04}"
+    UpgradeCode="{1199BA7E-5919-42A7-A870-A8B38B9554FC}">
+
+  <CompanyDetails Name="AutoPDF Pro" Url="" Email="" />
+
+  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
+
+  <Components Description="AutoPDF Pro for AutoCAD 2024">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
+    <ComponentEntry
+        AppName="AutoPDFPro"
+        Version="2.0.0"
+        ModuleName="./Contents/Windows/2024/AutoPDF.AutoCAD.dll"
+        AppDescription="AutoPDF Pro: listlarni aniqlash va PDF eksport (buyruq AUTOPDF)"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="True">
+      <Commands GroupName="AUTOPDFPRO">
+        <Command Global="AUTOPDF" Local="AUTOPDF" />
+        <Command Global="AUTOPDFMEDIA" Local="AUTOPDFMEDIA" />
+        <Command Global="AUTOPDFLOG" Local="AUTOPDFLOG" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

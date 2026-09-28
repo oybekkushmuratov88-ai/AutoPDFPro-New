@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    AutoCAD-independent logic: paper sizes, sheet model, sorting, media selection,
+    settings, logging. Multi-targeted so the unit tests can run on any OS (net8.0)
+    while AutoCAD loads the net48 build.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>AutoPDF.Core</RootNamespace>
+    <AssemblyName>AutoPDF.Core</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AutoPDF.Core.Tests" />
+  </ItemGroup>
+</Project>

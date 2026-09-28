@@ -1,0 +1,16 @@
+{
+  "profiles": {
+    "AutoCAD 2024": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Autodesk\\AutoCAD 2024\\acad.exe",
+      "commandLineArgs": "/nologo /language \"ru-RU\"",
+      "workingDirectory": "C:\\Program Files\\Autodesk\\AutoCAD 2024"
+    },
+    "AutoCAD 2024 (NETLOAD, no bundle)": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Program Files\\Autodesk\\AutoCAD 2024\\acad.exe",
+      "commandLineArgs": "/nologo /b \"C:\\src\\AutoPDFPro-New\\tools\\netload-debug.scr\"",
+      "workingDirectory": "C:\\Program Files\\Autodesk\\AutoCAD 2024"
+    }
+  }
+}

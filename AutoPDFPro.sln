@@ -1,0 +1,59 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B10A35B1-A488-4D7C-BB46-731A8F1EBE88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPDF.Core", "src\AutoPDF.Core\AutoPDF.Core.csproj", "{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPDF.UI", "src\AutoPDF.UI\AutoPDF.UI.csproj", "{2500990A-5441-418A-8D82-399BE310F3E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPDF.AutoCAD", "src\AutoPDF.AutoCAD\AutoPDF.AutoCAD.csproj", "{C9801311-6CD1-4AFD-9560-64AA73AF726E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D3B9FF81-8F57-4DEA-A8A3-40FBE0B8752C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPDF.Core.Tests", "tests\AutoPDF.Core.Tests\AutoPDF.Core.Tests.csproj", "{7C021929-8FAA-48D6-A068-8A57FCA395FF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{BDFCE2B9-2A22-4FA9-98E2-ACA46716F58B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPDF.UiDemo", "tools\AutoPDF.UiDemo\AutoPDF.UiDemo.csproj", "{8A83C06B-1C69-48FC-9340-426166EC1D5A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2500990A-5441-418A-8D82-399BE310F3E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2500990A-5441-418A-8D82-399BE310F3E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2500990A-5441-418A-8D82-399BE310F3E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2500990A-5441-418A-8D82-399BE310F3E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9801311-6CD1-4AFD-9560-64AA73AF726E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9801311-6CD1-4AFD-9560-64AA73AF726E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9801311-6CD1-4AFD-9560-64AA73AF726E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9801311-6CD1-4AFD-9560-64AA73AF726E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C021929-8FAA-48D6-A068-8A57FCA395FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C021929-8FAA-48D6-A068-8A57FCA395FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C021929-8FAA-48D6-A068-8A57FCA395FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C021929-8FAA-48D6-A068-8A57FCA395FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A83C06B-1C69-48FC-9340-426166EC1D5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A83C06B-1C69-48FC-9340-426166EC1D5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A83C06B-1C69-48FC-9340-426166EC1D5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A83C06B-1C69-48FC-9340-426166EC1D5A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DA08ED93-279C-4E37-8CF4-7C0FA85B0FC2} = {B10A35B1-A488-4D7C-BB46-731A8F1EBE88}
+		{2500990A-5441-418A-8D82-399BE310F3E7} = {B10A35B1-A488-4D7C-BB46-731A8F1EBE88}
+		{C9801311-6CD1-4AFD-9560-64AA73AF726E} = {B10A35B1-A488-4D7C-BB46-731A8F1EBE88}
+		{7C021929-8FAA-48D6-A068-8A57FCA395FF} = {D3B9FF81-8F57-4DEA-A8A3-40FBE0B8752C}
+		{8A83C06B-1C69-48FC-9340-426166EC1D5A} = {BDFCE2B9-2A22-4FA9-98E2-ACA46716F58B}
+	EndGlobalSection
+EndGlobal

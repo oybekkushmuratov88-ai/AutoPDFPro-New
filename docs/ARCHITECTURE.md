@@ -1,0 +1,115 @@
+# Architecture
+
+## Solution layout
+
+```
+AutoPDFPro.sln
+├─ src/AutoPDF.Core        net48 + net8.0   no AutoCAD references — all testable logic
+│   ├─ Geometry/           Bounds2d, RectangleRecognizer
+│   ├─ Paper/              PaperSize, PaperFormatCatalog (ISO + ГОСТ), PaperSizeResolver (scale + snapping)
+│   ├─ Models/             SheetModel, SheetCandidateFilter, SheetResult, ExportSummary
+│   ├─ Sorting/            SheetSorter
+│   ├─ Plotting/           MediaSelector, PdfPageGeometry (crop/orientation), PlotCommandBuilder (-PLOT answers)
+│   ├─ Pdf/                PdfFileVerifier
+│   ├─ Naming/             OutputFileNamer (01.pdf …)
+│   ├─ Settings/           PluginSettings, SettingsService (XML in %APPDATA%\AutoPDFPro)
+│   ├─ Logging/            LoggingService (%LOCALAPPDATA%\AutoPDFPro\Logs)
+│   └─ Localization/Uz.cs  every Uzbek text
+├─ src/AutoPDF.UI          net48 WPF, composed in C# (no XAML), no AutoCAD references
+│   ├─ Main/               MainWindow, MainViewModel, SheetRowViewModel
+│   ├─ Preview/            PreviewWindow (+VM), Cancel / Confirm / Confirm-all
+│   ├─ Settings/           SettingsWindow (+VM)
+│   ├─ Summary/            SummaryWindow
+│   └─ Services/           PdfPreviewRenderer (Windows.Data.Pdf), FolderPicker, UzDialog, Shell
+├─ src/AutoPDF.AutoCAD     net48 x64 — the plug-in loaded by AutoCAD 2024
+│   ├─ AutoPdfApp.cs       IExtensionApplication (logging, dependency resolution)
+│   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFMEDIA, AUTOPDFLOG
+│   ├─ Workflow/           AutoPdfController (main-window loop, scan/check/export, preview)
+│   ├─ Detection/          SheetDetector, FrameReader
+│   ├─ Plotting/           PlotSettingsService, PlotService, CommandLinePlotter,
+│   │                      CustomPaperSizeManager, PageSetupService, PdfExportService
+│   ├─ Pdf/                PdfPageService (PdfSharp: read page box, crop)
+│   ├─ Transient/          SheetHighlighter (numbers drawn over the sheets, not in the DWG)
+│   └─ Infrastructure/     PlotStepException, SysVarScope, EditorEcho, AcadErrors
+├─ tests/AutoPDF.Core.Tests xUnit (runs on any OS)
+├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without AutoCAD
+├─ bundle/AutoPDFPro.bundle PackageContents.xml (template)
+├─ installer/              install.ps1 / .bat, uninstall, Inno Setup script
+└─ build/build.ps1         build + test + zip (+ Setup.exe)
+```
+
+Every build of `AutoPDF.AutoCAD` assembles `artifacts\AutoPDFPro.bundle` (manifest + 4 DLLs).
+
+## Command flow
+
+```mermaid
+flowchart TD
+    A[AUTOPDF] --> B[AutoPdfController.Run<br/>load settings, switch to Model]
+    B --> C{{MainWindow - modal}}
+    C -- Skanerlash --> D[SheetDetector.Detect<br/>selection prompts]
+    D --> E[PaperSizeResolver + SheetCandidateFilter<br/>SheetSorter, CustomPaperSizeManager.Plan]
+    E --> C
+    C -- Tekshirish --> F[environment check + SheetHighlighter<br/>numbers on drawing, ENTER]
+    F --> C
+    C -- PDF yaratish --> G[names 01.pdf…, overwrite policy]
+    G --> H[for each sheet: PdfExportService.Export]
+    H --> I{preview mode?}
+    I -- yes --> J{{PreviewWindow}}
+    J -- Tasdiqlash --> H
+    J -- Tasdiqlash + qolganlari --> K[auto for the rest]
+    K --> H
+    J -- Bekor qilish --> L
+    I -- no --> H
+    H --> L{{SummaryWindow}}
+    L --> C
+    C -- close --> Z[restore layout, end]
+```
+
+The main window is modal and **closes** for every action. Selection prompts, the plot engine and the
+`-PLOT` fallback therefore always run in the plain command context, never from inside a WPF event handler
+(the plot engine and `Editor.Command` require that).
+
+## Per-sheet export pipeline (`PdfExportService`)
+
+1. **prepare** – valid paper? output folder; existing file not locked (open in a PDF viewer) → deleted.
+2. **media:select** – `CustomPaperSizeManager.Plan`:
+   * exact full-bleed paper on the main plotter (`DWG To PDF.pc3`), same orientation (0°) or turned (90°);
+   * exact paper on the optional *custom sizes* plotter (`AutoPDFPro PDF.pc3`, see
+     [CUSTOM_PAPER_SIZES.md](CUSTOM_PAPER_SIZES.md));
+   * otherwise the smallest full-bleed paper that holds the sheet → **crop** later.
+3. **plot** – `PlotService` (PlotEngine): `PlotSettingsService.Create` (ordered steps, see ANALYSIS §1),
+   `PlotInfoValidator`, engine begin/end with guaranteed clean-up. On failure (setting *Auto*) →
+   `CommandLinePlotter` (`-PLOT`).
+4. **verify:file** – exists, > 0 bytes, `%PDF-` header, `%%EOF` trailer (waits up to 3 s for the driver).
+5. **verify:page** – page size from the PDF (MediaBox + /Rotate). If width/height came out exchanged, the
+   device places the drawing the other way round for that paper: the rotation is learned for that paper
+   and the sheet is plotted once more.
+6. **crop** (non-standard sizes only) – the plot is centred at the exact scale on full-bleed paper, so the
+   sheet occupies the centred W×H box; MediaBox/CropBox are set to it (PdfSharp, via a temp file).
+7. **verify:final-size** – final page vs. sheet paper (±1.5 mm, configurable).
+
+Any exception becomes a `SheetResult { FailedStep, Error }`, logged as
+`[List 03] [plot:engine-begin-document] eInvalidInput — …`. The loop continues with the next sheet unless
+*Xatolik bo‘lganda: To‘xtatish* is set. ESC or *Cancel* in the plot progress dialog stops the batch.
+
+## Paper-size detection
+
+`PaperSizeResolver` converts the frame size (drawing units × INSUNITS factor) to millimetres for every
+candidate scale (1, 2, 2.5, 4, 5, 10, … 1:10000, or only the fixed scale from the settings) and compares
+with ISO A0–A5, ГОСТ extended formats and the user list. Among all matches within 0.5 mm the smallest
+deviation wins; equal deviations prefer the smaller scale. Frames that match nothing get a custom paper
+(rounded to 0.1 mm) at the scale whose short side is closest to a standard edge (if within 1 %), else the
+smallest plausible scale. Sheets with a short side < 100 mm are not sheets (title-block cells).
+
+## Why these technical choices
+
+| Choice | Reason |
+|---|---|
+| Plot API (PlotEngine) as primary | Language-independent, no prompt sequences, precise errors. |
+| In-memory `PlotSettings` override | Never changes the user's page setups or layouts. |
+| Crop instead of writing PC3/PMP | AutoCAD has no API to add paper sizes; hand-writing PC3/PMP binaries risks breaking the user's plotters. Crop needs nothing but standard papers. An exact custom plotter is used when the user provides one. |
+| Orientation self-check | The meaning of PlotRotation relative to a paper's native orientation is device-specific; measuring the result makes it deterministic. |
+| WPF built in C# | Compiler-checked bindings/styles, no runtime XAML parse errors inside AutoCAD, buildable on CI. |
+| Windows.Data.Pdf for preview | Built into Windows 10/11 (AutoCAD 2024's platforms): no native PDF DLL to ship. The file is read into memory, so it is never locked. |
+| PdfSharp 1.50.5147 | MIT, single managed DLL, the version the previous plug-in already loaded in AutoCAD 2024. |
+| Distinct assembly names (`AutoPDF.*`) | Cannot collide with the old `AutoPDFPro.*` assemblies if both bundles are present during migration. |

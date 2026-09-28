@@ -1,0 +1,3 @@
+; Loads the Debug build directly (without the bundle) — used by the "NETLOAD" launch profile.
+; Adjust the path if the repository is somewhere else. SECURELOAD may ask to confirm loading.
+(command "_.NETLOAD" "C:/src/AutoPDFPro-New/src/AutoPDF.AutoCAD/bin/Debug/net48/AutoPDF.AutoCAD.dll")

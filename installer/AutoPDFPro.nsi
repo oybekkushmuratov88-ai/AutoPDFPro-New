@@ -26,7 +26,7 @@ SetCompressor /SOLID lzma
 RequestExecutionLevel admin
 
 !ifndef VERSION
-  !define VERSION "2.1.0"
+  !define VERSION "2.2.0"
 !endif
 !define PRODUCT "AutoPDF Pro"
 !define AUTHOR "Kushmuratov Oybek"

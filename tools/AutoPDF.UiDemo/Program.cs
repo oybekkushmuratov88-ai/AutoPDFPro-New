@@ -2,14 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 using AutoPDF.Core.Geometry;
 using AutoPDF.Core.Localization;
 using AutoPDF.Core.Models;
 using AutoPDF.Core.Paper;
+using AutoPDF.Core.Registration;
 using AutoPDF.Core.Settings;
 using AutoPDF.UI.Main;
 using AutoPDF.UI.Preview;
+using AutoPDF.UI.Registration;
 using AutoPDF.UI.Services;
 using AutoPDF.UI.Settings;
 using AutoPDF.UI.Summary;
@@ -21,6 +24,8 @@ namespace AutoPDF.UiDemo
     ///   AutoPDF.UiDemo.exe                  → main window (+ settings, about)
     ///   AutoPDF.UiDemo.exe --lang ru        → same in Russian (uz / ru / en)
     ///   AutoPDF.UiDemo.exe some.pdf         → preview window for that PDF, then the summary window
+    ///   AutoPDF.UiDemo.exe --demo register  → the first-run registration window (add --fail to test offline)
+    ///   AutoPDF.UiDemo.exe --demo users     → the admin user list (any key works in the demo)
     /// </summary>
     public static class Program
     {
@@ -42,17 +47,60 @@ namespace AutoPDF.UiDemo
             }
             L.Current = settings.Language;
 
+            int demoIndex = Array.FindIndex(args, a => string.Equals(a, "--demo", StringComparison.OrdinalIgnoreCase));
+            string demo = demoIndex >= 0 && demoIndex + 1 < args.Length ? args[demoIndex + 1].ToLowerInvariant() : null;
             string pdf = args.FirstOrDefault(a => a.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) && File.Exists(a));
-            if (pdf != null)
-            {
-                ShowPreview(pdf);
-            }
-            else
-            {
-                ShowMain(settings);
-            }
+
+            if (demo == "register") ShowRegister(args.Any(a => string.Equals(a, "--fail", StringComparison.OrdinalIgnoreCase)));
+            else if (demo == "users") ShowUsers();
+            else if (pdf != null) ShowPreview(pdf);
+            else ShowMain(settings);
 
             app.Shutdown();
+        }
+
+        private static void ShowRegister(bool simulateOffline)
+        {
+            var vm = new RegistrationViewModel("2.2.0 (demo)")
+            {
+                Submit = _ =>
+                {
+                    Thread.Sleep(900); // show the busy state
+                    return simulateOffline
+                        ? new SubmitResult { Ok = false, NetworkProblem = true, Error = "demo offline" }
+                        : new SubmitResult { Ok = true };
+                },
+                Persist = (_, __) => { }
+            };
+            new RegistrationWindow(vm) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
+            MessageDialog.Show(IntPtr.Zero, "Outcome: " + vm.Outcome);
+        }
+
+        private static void ShowUsers()
+        {
+            var vm = new UsersViewModel(new DemoGateway(), new AdminKeyStore(Path.Combine(Path.GetTempPath(), "autopdf-demo-admin.txt")));
+            new UsersWindow(vm) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
+        }
+
+        /// <summary>Returns sample users for the admin-window demo (any key is accepted).</summary>
+        private sealed class DemoGateway : IRegistrationGateway
+        {
+            public SubmitResult Submit(RegistrationInfo info) => new SubmitResult { Ok = true };
+
+            public UsersResult FetchUsers(string adminKey)
+            {
+                Thread.Sleep(500);
+                return new UsersResult
+                {
+                    Ok = true,
+                    Users = new List<RegisteredUser>
+                    {
+                        new RegisteredUser { Number = 1, Date = "2026-09-29 09:12", FullName = "Kushmuratov Oybek", Email = "oybek@example.com", Phone = "+998 90 111 22 33", Computer = "OYBEK-PC", WindowsUser = "oybek", Version = "2.1.0" },
+                        new RegisteredUser { Number = 2, Date = "2026-09-29 10:03", FullName = "Ali Valiyev", Email = "ali@example.uz", Phone = "", Computer = "WS-ARCH-02", WindowsUser = "ali", Version = "2.1.0" },
+                        new RegisteredUser { Number = 3, Date = "2026-09-30 14:40", FullName = "Nigora Karimova", Email = "nigora@example.uz", Phone = "+998 91 555 66 77", Computer = "DESIGN-05", WindowsUser = "nigora", Version = "2.1.0" }
+                    }
+                };
+            }
         }
 
         private static void ShowMain(PluginSettings settings)
@@ -80,7 +128,7 @@ namespace AutoPDF.UiDemo
             string status = "Demo — AutoCAD siz / без AutoCAD / without AutoCAD.";
             while (true)
             {
-                var vm = new MainViewModel(settings, sheets, "v2.1.0 (demo)", status);
+                var vm = new MainViewModel(settings, sheets, "v2.2.0 (demo)", status);
                 var window = new MainWindow(vm);
                 vm.OpenFolderRequested += f => Shell.OpenFolder(f, out _);
                 vm.OpenSettingsRequested += () =>

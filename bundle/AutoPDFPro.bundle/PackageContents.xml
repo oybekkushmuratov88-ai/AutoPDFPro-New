@@ -12,8 +12,8 @@
     ProductType="Application"
     Name="AutoPDF Pro"
     Description="AutoCAD listlarini (ramkalarni) avtomatik topib, har birini alohida PDF ga chiqarish. O‘zbek / Русский / English."
-    AppVersion="2.1.0"
-    FriendlyVersion="2.1.0"
+    AppVersion="2.2.0"
+    FriendlyVersion="2.2.0"
     Author="Kushmuratov Oybek"
     ProductCode="{F3C1626A-8269-442B-A3AC-1C878B083C04}"
     UpgradeCode="{1199BA7E-5919-42A7-A870-A8B38B9554FC}">
@@ -26,7 +26,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
     <ComponentEntry
         AppName="AutoPDFPro"
-        Version="2.1.0"
+        Version="2.2.0"
         ModuleName="./Contents/Windows/2024/AutoPDF.AutoCAD.dll"
         AppDescription="AutoPDF Pro: listlarni aniqlash va PDF eksport (buyruq AUTOPDF)"
         LoadOnAutoCADStartup="True"
@@ -35,6 +35,7 @@
         <Command Global="AUTOPDF" Local="AUTOPDF" />
         <Command Global="AUTOPDFMEDIA" Local="AUTOPDFMEDIA" />
         <Command Global="AUTOPDFLOG" Local="AUTOPDFLOG" />
+        <Command Global="AUTOPDFADMIN" Local="AUTOPDFADMIN" />
       </Commands>
     </ComponentEntry>
   </Components>

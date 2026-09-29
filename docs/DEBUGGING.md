@@ -121,3 +121,19 @@ Testing without Windows: the wizard and the silent install/uninstall can be run 
 available, compile a 64-bit test build of the same script:
 `makensis "-XTarget amd64-unicode" -DOUTFILE=/tmp/Setup-x64.exe installer/AutoPDFPro.nsi`
 (release builds use the standard 32-bit stub, which runs on every 64-bit Windows).
+
+## 9. Registration (if switched on)
+
+Registration is off unless the author has set `RegistrationConfig.Endpoint` to a Google Apps Script web-app
+URL (see [REGISTRATION.md](REGISTRATION.md)). When it is on:
+
+* The machine's registration is stored in `%APPDATA%\AutoPDFPro\registration.xml`
+  (`Delivered=false` means it has not reached the server yet — it is re-sent on the next `AUTOPDF`).
+* `AUTOPDFADMIN` opens the user list; it asks for the admin key, which the server checks. `AdminForbidden`
+  ("Wrong key") means the key does not match the `ADMIN_KEY` in the deployed `Code.gs`.
+* Health check: open the `/exec` URL in a browser — it must print `OK`. `…/exec?action=list&key=<ADMIN_KEY>`
+  prints the users as tab-separated rows.
+* No e-mail arriving: check the author's Gmail spam folder and that `NOTIFY_EMAIL` in `Code.gs` is correct;
+  after editing `Code.gs`, redeploy (*Manage deployments → Edit → New version → Deploy*).
+* To test the windows without AutoCAD: `AutoPDF.UiDemo.exe --demo register` (add `--fail` for the offline
+  path) and `AutoPDF.UiDemo.exe --demo users`.

@@ -1,4 +1,4 @@
-# AutoPDF Pro 2.1 — AutoCAD 2024 plug-in
+# AutoPDF Pro 2.2 — AutoCAD 2024 plug-in
 
 **Author: Kushmuratov Oybek** · © 2026 Kushmuratov Oybek. All rights reserved.
 
@@ -7,7 +7,8 @@ with the correct paper size, orientation, scale and plot style. User interface i
 and English** (switch in *Sozlamalar → Til · Язык · Language*); works in the Russian (and any other)
 AutoCAD 2024.
 
-* Command: **`AUTOPDF`** (also `AUTOPDFMEDIA` — plotter diagnostics, `AUTOPDFLOG` — open the log folder)
+* Command: **`AUTOPDF`** (also `AUTOPDFMEDIA` — plotter diagnostics, `AUTOPDFLOG` — open the log folder,
+  `AUTOPDFADMIN` — the author's list of registered users)
 * AutoCAD 2024 (R24.3), Windows 10/11 64-bit, .NET Framework 4.8
 * Clean new implementation — see [docs/ANALYSIS.md](docs/ANALYSIS.md) for why the old version failed with
   `SetPlotType(copyFrom) -> InvalidInput` and `-PLOT buyrug'i PDF yaratmadi`, and how this one avoids it.
@@ -27,13 +28,14 @@ AutoCAD 2024.
 | Errors | Logged with sheet number and exact step; the batch continues (or stops, if configured); final report. |
 | Languages | O‘zbekcha (default), Русский, English — every window, message, command-line prompt and log line. |
 | About | The author's photo and name in the top-right corner of the main window; click it for the *About* window. |
+| Registration | Optional, author-configured: the user registers once (name + e-mail) and the author is e-mailed and sees every user. Off unless the author sets it up — see [Registration](#registration--royxatdan-otish). |
 
 ## Installation
 
 ### Setup.exe (recommended)
 
 1. Close AutoCAD.
-2. Run **`AutoPDFPro-2.1.0-Setup.exe`** → choose the language (O‘zbekcha / Русский / English) →
+2. Run **`AutoPDFPro-2.2.0-Setup.exe`** → choose the language (O‘zbekcha / Русский / English) →
    *O‘rnatish* / *Установить* / *Install*. Windows asks for administrator rights.
 3. Start AutoCAD 2024 and type **`AUTOPDF`**.
 
@@ -47,15 +49,15 @@ Setup.exe is not code-signed, so Windows SmartScreen may show *“Windows protec
 *«Система Windows защитила ваш компьютер»*: click *More info → Run anyway* / *Подробнее → Выполнить в любом
 случае*.
 
-Silent installation: `AutoPDFPro-2.1.0-Setup.exe /S`.
+Silent installation: `AutoPDFPro-2.2.0-Setup.exe /S`.
 
-### From the release zip (`AutoPDFPro-2.1.0.zip`)
+### From the release zip (`AutoPDFPro-2.2.0.zip`)
 
 1. Close AutoCAD.
 2. Unzip, right-click **`install.bat`** → *Run* (asks for administrator rights; installs for all users to
    `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle`).
    Without admin rights use **`install-peruser.bat`** (installs to `%APPDATA%\Autodesk\ApplicationPlugins`).
-3. Start AutoCAD 2024 → the command line shows `AutoPDF Pro v2.1.0 yuklandi` → type **`AUTOPDF`**.
+3. Start AutoCAD 2024 → the command line shows `AutoPDF Pro v2.2.0 yuklandi` → type **`AUTOPDF`**.
 
 The script unblocks the DLLs and moves an older AutoPDF Pro bundle to
 `%LOCALAPPDATA%\AutoPDFPro\Backup\…` so the `AUTOPDF` command is not defined twice.
@@ -113,8 +115,8 @@ dotnet test  tests\AutoPDF.Core.Tests
 On Linux or macOS `build/build.sh` builds, tests and compiles Setup.exe (`apt install nsis` /
 `brew install makensis`).
 
-Output: `artifacts\AutoPDFPro.bundle` (ready to copy), `dist\AutoPDFPro-2.1.0.zip` and
-`dist\AutoPDFPro-2.1.0-Setup.exe`. The installer is described by `installer\AutoPDFPro.nsi`; its pictures are
+Output: `artifacts\AutoPDFPro.bundle` (ready to copy), `dist\AutoPDFPro-2.2.0.zip` and
+`dist\AutoPDFPro-2.2.0-Setup.exe`. The installer is described by `installer\AutoPDFPro.nsi`; its pictures are
 made by `installer\art\make_art.py`.
 
 ## Documentation
@@ -123,6 +125,26 @@ made by `installer\art\make_art.py`.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — projects, classes, command flow, plotting pipeline
 * [docs/CUSTOM_PAPER_SIZES.md](docs/CUSTOM_PAPER_SIZES.md) — 630×297, 891×420, 1260×594 …
 * [docs/DEBUGGING.md](docs/DEBUGGING.md) — logs, step names, `AUTOPDFMEDIA`, Visual Studio debugging
+* [docs/REGISTRATION.md](docs/REGISTRATION.md) — the registration flow, the web app, `AUTOPDFADMIN`
+* [installer/registration/README.md](installer/registration/README.md) — deploy the Google Apps Script (5 min)
+
+## Registration / Ro‘yxatdan o‘tish
+
+Optional and **off by default**. When the author sets it up, the user registers once (name + e-mail) the
+first time they run `AUTOPDF`; the details, plus this computer's name, the Windows user and the version, are
+shown to the user, sent on consent to a Google Apps Script the author deploys, and the author is e-mailed and
+sees every user in a Google Sheet (or in AutoCAD via `AUTOPDFADMIN` + the admin key).
+
+* No password or secret ships in the plug-in — the e-mail is sent by the author's own Google account; the
+  plug-in only holds the public web-app URL.
+* The user's Google password is never requested; they type their e-mail and give consent.
+* A workstation with restricted internet is not locked out: the registration is stored locally and re-sent
+  automatically once the machine is online.
+
+To switch it on, deploy [installer/registration/Code.gs](installer/registration/Code.gs) (steps in
+[installer/registration/README.md](installer/registration/README.md)) and put its `/exec` URL in
+`RegistrationConfig.Endpoint`. While the URL is the placeholder, registration is disabled and the plug-in
+works exactly as before.
 
 ## Languages / Tillar / Языки
 
@@ -133,6 +155,10 @@ its three translations side by side — to correct a translation, edit it there 
 
 ## Changelog
 
+* **2.2.0** — Optional, author-configured **registration**: a first-run window (name + e-mail + consent,
+  showing exactly what is sent), a Google Apps Script back end that e-mails the author and lists users in a
+  Google Sheet, mandatory-registration gate with offline re-send, and the `AUTOPDFADMIN` user list. Disabled
+  until the author sets the web-app URL, so the plug-in is unchanged for everyone else.
 * **2.1.0** — Single-file installer `AutoPDFPro-2.1.0-Setup.exe` (O‘zbekcha / Русский / English, AutoCAD
   checks, moves older versions aside, uninstaller in *Apps*). Interface in three languages (O‘zbekcha / Русский / English) with a language switch in
   Settings; author badge with photo in the main window and an *About* window (Kushmuratov Oybek); author

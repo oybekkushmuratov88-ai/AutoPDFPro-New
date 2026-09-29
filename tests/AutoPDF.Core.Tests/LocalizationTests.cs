@@ -95,7 +95,7 @@ namespace AutoPDF.Core.Tests
         public void RussianTextsAreRussian()
         {
             // Every Russian text with words (not just symbols/numbers/product names) contains Cyrillic letters.
-            var exceptions = new HashSet<string> { "AppTitle", "Ok", "MethodApi", "ColNumber", "GroupLanguage", "EchoWarning", "EchoError" };
+            var exceptions = new HashSet<string> { "AppTitle", "Ok", "MethodApi", "ColNumber", "GroupLanguage", "EchoWarning", "EchoError", "ColWindows" };
             foreach ((string name, string text) in TextsIn(UiLanguage.Russian))
             {
                 if (exceptions.Contains(name)) continue;

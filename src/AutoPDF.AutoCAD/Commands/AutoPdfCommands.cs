@@ -6,7 +6,9 @@ using AutoPDF.AutoCAD.Plotting;
 using AutoPDF.AutoCAD.Workflow;
 using AutoPDF.Core.Localization;
 using AutoPDF.Core.Paper;
+using AutoPDF.Core.Registration;
 using AutoPDF.Core.Settings;
+using AutoPDF.UI.Registration;
 using AutoPDF.UI.Services;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Runtime;
@@ -20,6 +22,15 @@ namespace AutoPDF.AutoCAD.Commands
     /// </summary>
     public sealed class AutoPdfCommands
     {
+        private static IntPtr AcadWindow
+        {
+            get
+            {
+                try { return AcApp.MainWindow.Handle; }
+                catch { return IntPtr.Zero; }
+            }
+        }
+
         /// <summary>Main command: opens the AutoPDF Pro window.</summary>
         [CommandMethod("AUTOPDFPRO", "AUTOPDF", CommandFlags.Modal)]
         public void AutoPdf()
@@ -108,6 +119,38 @@ namespace AutoPDF.AutoCAD.Commands
             {
                 AutoPdfApp.Log.Error(L.MediaCommandError, ex);
                 doc.Editor.WriteMessage("\n" + L.MediaCommandError + AcadErrors.Describe(ex) + "\n");
+            }
+        }
+
+        /// <summary>Admin-only: the list of registered users (protected by the admin key, checked on the server).</summary>
+        [CommandMethod("AUTOPDFPRO", "AUTOPDFADMIN", CommandFlags.Modal)]
+        public void AutoPdfAdmin()
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+
+            try
+            {
+                var log = AutoPdfApp.Log;
+                PluginSettings settings = new SettingsService(SettingsService.DefaultFilePath, log).Load();
+                L.Current = settings.Language;
+
+                if (!RegistrationConfig.IsConfigured)
+                {
+                    MessageDialog.Show(AcadWindow, L.AdminNotConfigured, L.AppTitle, DialogKind.Info);
+                    return;
+                }
+
+                using (var gateway = new HttpRegistrationGateway(RegistrationConfig.Endpoint, AutoPdfApp.Version))
+                {
+                    var vm = new UsersViewModel(gateway, new AdminKeyStore(AdminKeyStore.DefaultFilePath));
+                    AcApp.ShowModalWindow(AcadWindow, new UsersWindow(vm), false);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                AutoPdfApp.Log.Error("AUTOPDFADMIN", ex);
+                doc.Editor.WriteMessage("\n" + L.EchoError + AcadErrors.Describe(ex) + "\n");
             }
         }
 

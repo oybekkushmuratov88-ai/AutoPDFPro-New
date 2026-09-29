@@ -12,4 +12,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="AutoPDF.Core.Tests" />
   </ItemGroup>
+  <!-- HttpClient for the registration web app. Part of .NET 4.8, but SDK-style net48 needs it named. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
 </Project>

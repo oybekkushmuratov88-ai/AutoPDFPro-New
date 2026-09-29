@@ -14,6 +14,7 @@ AutoPDFPro.sln
 │   ├─ Naming/             OutputFileNamer (01.pdf …)
 │   ├─ Settings/           PluginSettings, SettingsService (XML in %APPDATA%\AutoPDFPro)
 │   ├─ Logging/            LoggingService (%LOCALAPPDATA%\AutoPDFPro\Logs)
+│   ├─ Registration/       RegistrationConfig, RegistrationInfo + Store, MachineFacts, HttpRegistrationGateway
 │   └─ Localization/L*.cs  every user-visible text in O‘zbekcha / Русский / English (+ AppInfo: author)
 ├─ src/AutoPDF.UI          net48 WPF, composed in C# (no XAML), no AutoCAD references
 │   ├─ Main/               MainWindow, MainViewModel, SheetRowViewModel
@@ -21,10 +22,11 @@ AutoPDFPro.sln
 │   ├─ Settings/           SettingsWindow (+VM)
 │   ├─ Summary/            SummaryWindow
 │   ├─ About/              AboutWindow, AuthorInfo (embedded photo Assets/author.jpg, round avatar)
+│   ├─ Registration/       RegistrationWindow (+VM), UsersWindow (+VM, admin)
 │   └─ Services/           PdfPreviewRenderer (Windows.Data.Pdf), FolderPicker, MessageDialog, Shell
 ├─ src/AutoPDF.AutoCAD     net48 x64 — the plug-in loaded by AutoCAD 2024
 │   ├─ AutoPdfApp.cs       IExtensionApplication (logging, dependency resolution)
-│   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFMEDIA, AUTOPDFLOG
+│   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFMEDIA, AUTOPDFLOG, AUTOPDFADMIN
 │   ├─ Workflow/           AutoPdfController (main-window loop, scan/check/export, preview)
 │   ├─ Detection/          SheetDetector, FrameReader
 │   ├─ Plotting/           PlotSettingsService, PlotService, CommandLinePlotter,
@@ -33,10 +35,11 @@ AutoPDFPro.sln
 │   ├─ Transient/          SheetHighlighter (numbers drawn over the sheets, not in the DWG)
 │   └─ Infrastructure/     PlotStepException, SysVarScope, EditorEcho, AcadErrors
 ├─ tests/AutoPDF.Core.Tests xUnit (runs on any OS)
-├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without AutoCAD
+├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without AutoCAD (--demo register | users)
 ├─ bundle/AutoPDFPro.bundle PackageContents.xml (template)
 ├─ installer/              AutoPDFPro.nsi → Setup.exe (NSIS 3); nsis/ corrected Uzbek installer texts;
-│                          art/ icon + wizard pictures (make_art.py); install.ps1/.bat, uninstall (zip)
+│                          art/ icon + wizard pictures (make_art.py); registration/ Apps Script back end;
+│                          install.ps1/.bat, uninstall (zip)
 └─ build/                  build.ps1 (build + test + zip + Setup.exe), build.sh (Linux/macOS)
 ```
 
@@ -112,6 +115,28 @@ every text exists in all three languages. Windows are built in code, therefore a
 closes and rebuilds the main window (`MainAction.Reload`). Step names in the log (`plot:set-media` …) stay
 English so logs are comparable across languages.
 
+## Registration
+
+Optional and configured by the author. `RegistrationConfig.Endpoint` holds a Google Apps Script web-app URL;
+while it is the placeholder the whole feature is off (`IsConfigured == false`) and the plug-in is unchanged.
+
+At the start of `AutoPdfController.Run`, `EnsureRegistered()`:
+
+1. loads `%APPDATA%\AutoPDFPro\registration.xml` (`RegistrationStore`); if the machine has already
+   registered, it returns immediately (and quietly re-sends in the background if a previous send never
+   reached the server);
+2. otherwise shows `RegistrationWindow`. The user types name + e-mail (+ optional phone), sees the exact
+   facts that will leave the machine (`MachineFacts`: computer, Windows user, version), ticks consent and
+   presses Register;
+3. `HttpRegistrationGateway.Submit` POSTs the form to the web app (`Code.gs`), which — running inside the
+   author's Google account — e-mails the author and appends the user to a Google Sheet. On success the
+   registration is stored as delivered; on a network failure the user may continue and it is re-sent later.
+
+`AUTOPDFADMIN` reads the list back: `HttpRegistrationGateway.FetchUsers(adminKey)` (a GET whose reply is one
+`OK` line plus tab-separated rows) fills `UsersWindow`. The admin key is checked on the server and typed by
+the author, so it is never part of the distributed plug-in. All of `Registration/` lives in `AutoPDF.Core`
+with no AutoCAD dependency, so the gateway is unit-tested against a local `HttpListener`.
+
 ## Why these technical choices
 
 | Choice | Reason |
@@ -124,4 +149,5 @@ English so logs are comparable across languages.
 | Windows.Data.Pdf for preview | Built into Windows 10/11 (AutoCAD 2024's platforms): no native PDF DLL to ship. The file is read into memory, so it is never locked. |
 | PdfSharp 1.50.5147 | MIT, single managed DLL, the version the previous plug-in already loaded in AutoCAD 2024. |
 | NSIS for Setup.exe | One small file (≈ 0.5 MB) with an uninstaller; compiles on Windows and Linux (CI); Unicode wizard in O‘zbekcha / Русский / English. |
+| Apps Script for registration | E-mail + storage run in the author's own Google account, so no password or SMTP secret ships in the plug-in; the client only holds a public web-app URL and never sees the user's Google password. |
 | Distinct assembly names (`AutoPDF.*`) | Cannot collide with the old `AutoPDFPro.*` assemblies if both bundles are present during migration. |

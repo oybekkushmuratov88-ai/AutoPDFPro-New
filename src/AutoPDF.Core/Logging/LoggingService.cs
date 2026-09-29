@@ -32,7 +32,7 @@ namespace AutoPDF.Core.Logging
             var sb = new StringBuilder();
             sb.Append(Time.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
             sb.Append(' ').Append(LevelText(Level));
-            if (Sheet.HasValue) sb.Append(" [List ").Append(Sheet.Value.ToString("00", CultureInfo.InvariantCulture)).Append(']');
+            if (Sheet.HasValue) sb.Append(" [").Append(Localization.L.Sheet).Append(' ').Append(Sheet.Value.ToString("00", CultureInfo.InvariantCulture)).Append(']');
             if (!string.IsNullOrEmpty(Step)) sb.Append(" [").Append(Step).Append(']');
             sb.Append(' ').Append(Message);
             return sb.ToString();

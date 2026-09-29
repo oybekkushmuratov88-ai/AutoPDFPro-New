@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Paper
 {
@@ -86,7 +87,7 @@ namespace AutoPDF.Core.Paper
                 {
                     Paper = new PaperSize(0, 0),
                     IsValid = false,
-                    Problem = "Ramka o‘lchami noto‘g‘ri (nol yoki manfiy)."
+                    Problem = L.PaperInvalidSize
                 };
             }
 
@@ -148,14 +149,12 @@ namespace AutoPDF.Core.Paper
             if (paper.ShortSideMm < _options.MinShortSideMm)
             {
                 result.IsValid = false;
-                result.Problem = string.Format(CultureInfo.InvariantCulture,
-                    "List juda kichik: {0} (minimal qisqa tomon {1:0} mm).", paper, _options.MinShortSideMm);
+                result.Problem = L.PaperTooSmall(paper, _options.MinShortSideMm);
             }
             else if (paper.LongSideMm > _options.MaxLongSideMm)
             {
                 result.IsValid = false;
-                result.Problem = string.Format(CultureInfo.InvariantCulture,
-                    "List juda katta: {0} (maksimal uzun tomon {1:0} mm).", paper, _options.MaxLongSideMm);
+                result.Problem = L.PaperTooLarge(paper, _options.MaxLongSideMm);
             }
 
             return result;

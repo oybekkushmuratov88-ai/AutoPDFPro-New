@@ -20,7 +20,10 @@ namespace AutoPDF.UI.Main
         Close,
         Scan,
         Check,
-        CreatePdf
+        CreatePdf,
+
+        /// <summary>Rebuild the window (e.g. after the interface language was changed).</summary>
+        Reload
     }
 
     public sealed class MainViewModel : ObservableObject
@@ -158,13 +161,14 @@ namespace AutoPDF.UI.Main
                 if (_sheets.Count == 0)
                 {
                     int pad = OutputFileNamer.PadWidth(_settings.StartNumber + 1);
-                    return "Fayllar: " + OutputFileNamer.BuildFileName(_settings.FileNamePattern, _settings.StartNumber, pad) + ", " +
-                           OutputFileNamer.BuildFileName(_settings.FileNamePattern, _settings.StartNumber + 1, pad) + " …";
+                    return L.FilesPreview(
+                        OutputFileNamer.BuildFileName(_settings.FileNamePattern, _settings.StartNumber, pad),
+                        OutputFileNamer.BuildFileName(_settings.FileNamePattern, _settings.StartNumber + 1, pad));
                 }
                 int padWidth = OutputFileNamer.PadWidth(_sheets.Max(s => s.Number));
                 string first = OutputFileNamer.BuildFileName(_settings.FileNamePattern, _sheets.First().Number, padWidth);
                 string last = OutputFileNamer.BuildFileName(_settings.FileNamePattern, _sheets.Last().Number, padWidth);
-                return _sheets.Count == 1 ? "Fayl: " + first : "Fayllar: " + first + " … " + last;
+                return _sheets.Count == 1 ? L.FileSingle(first) : L.FilesRange(first, last);
             }
         }
 
@@ -172,7 +176,7 @@ namespace AutoPDF.UI.Main
         public bool HasSheets => _sheets.Count > 0;
         public bool HasNoSheets => _sheets.Count == 0;
 
-        public string FoundText => Uz.FoundSheets + ": " + _sheets.Count.ToString(CultureInfo.InvariantCulture);
+        public string FoundText => L.FoundSheets(_sheets.Count);
 
         public string SummaryText
         {
@@ -184,10 +188,10 @@ namespace AutoPDF.UI.Main
                 int warn = _sheets.Count(s => s.Status == SheetStatus.Warning || s.Status == SheetStatus.DoneWithWarning);
                 int err = _sheets.Count(s => s.Status == SheetStatus.Error || s.Status == SheetStatus.Failed);
                 var parts = new List<string>();
-                if (ready > 0) parts.Add("tayyor: " + ready);
-                if (crop > 0) parts.Add("kesish bilan: " + crop);
-                if (warn > 0) parts.Add("ogohlantirish: " + warn);
-                if (err > 0) parts.Add("xato: " + err);
+                if (ready > 0) parts.Add(L.CountReady(ready));
+                if (crop > 0) parts.Add(L.CountCrop(crop));
+                if (warn > 0) parts.Add(L.CountWarnings(warn));
+                if (err > 0) parts.Add(L.CountErrors(err));
                 var formats = _sheets.Where(s => s.Paper != null)
                     .GroupBy(s => s.Paper.FormatName ?? s.Paper.Paper.Key)
                     .Select(g => g.Key + "×" + g.Count());
@@ -235,7 +239,7 @@ namespace AutoPDF.UI.Main
         {
             if (!HasSheets)
             {
-                ShowMessage?.Invoke(Uz.ScanFirst);
+                ShowMessage?.Invoke(L.ScanFirst);
                 return;
             }
             if (string.IsNullOrWhiteSpace(OutputFolder))
@@ -243,12 +247,15 @@ namespace AutoPDF.UI.Main
                 OnChooseFolder();
                 if (string.IsNullOrWhiteSpace(OutputFolder))
                 {
-                    ShowMessage?.Invoke(Uz.ChooseFolderFirst);
+                    ShowMessage?.Invoke(L.ChooseFolderFirst);
                     return;
                 }
             }
             Finish(MainAction.CreatePdf);
         }
+
+        /// <summary>Close the window so the plug-in opens it again (used after a language change).</summary>
+        public void RequestReload() => Finish(MainAction.Reload);
 
         private void Finish(MainAction action)
         {

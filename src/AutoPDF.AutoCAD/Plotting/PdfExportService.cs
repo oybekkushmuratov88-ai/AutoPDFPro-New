@@ -10,6 +10,7 @@ using AutoPDF.Core.Paper;
 using AutoPDF.Core.Pdf;
 using AutoPDF.Core.Plotting;
 using AutoPDF.Core.Settings;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
@@ -68,7 +69,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 step = "prepare:paper";
                 if (sheet.Paper == null || !sheet.Paper.IsValid)
                 {
-                    throw new PlotStepException(step, sheet.Paper?.Problem ?? "Qog‘oz o‘lchami aniqlanmagan.");
+                    throw new PlotStepException(step, sheet.Paper?.Problem ?? L.PaperUnknown);
                 }
 
                 step = "prepare:output-file";
@@ -78,7 +79,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 MediaPlan plan = _media.Plan(sheet.Paper.Paper, _settings, out string problem);
                 if (plan == null) throw new PlotStepException(step, problem);
                 result.PlanDescription = plan.Describe();
-                _log.SheetInfo(n, step, "Qog‘oz: " + plan.Describe() + (plan.Fit == MediaFit.Exact ? " (aniq o‘lcham)" : " (keyin kesiladi)"));
+                _log.SheetInfo(n, step, L.PlanChosen(plan.Describe(), plan.Fit == MediaFit.Exact));
 
                 step = "plot";
                 PlotAndVerify(sheet, plan, outputPath, label, result, allowOrientationRetry: true);
@@ -123,8 +124,7 @@ namespace AutoPDF.AutoCAD.Plotting
 
             if (!PdfFileVerifier.IsWritable(outputPath, out string problem))
             {
-                throw new PlotStepException("prepare:output-file",
-                    "Fayl band — boshqa dasturda (PDF ko‘ruvchi) ochiq bo‘lishi mumkin: " + outputPath + " (" + problem + ")");
+                throw new PlotStepException("prepare:output-file", L.FileLocked(outputPath, problem));
             }
             File.Delete(outputPath);
         }
@@ -150,27 +150,24 @@ namespace AutoPDF.AutoCAD.Plotting
             catch (Exception ex)
             {
                 // The file is structurally fine; we just cannot measure it. Keep it, but say so.
-                result.Warnings.Add("PDF sahifa o‘lchamini o‘qib bo‘lmadi (" + ex.Message + ") — o‘lcham tekshiruvi" +
-                                    (plan.Fit == MediaFit.Crop ? " va kesish bajarilmadi (sahifa " + plan.ExpectedPage + " bo‘lib qoldi)." : " bajarilmadi."));
+                result.Warnings.Add(plan.Fit == MediaFit.Crop ? L.PageUnreadableCrop(ex.Message, plan.ExpectedPage) : L.PageUnreadable(ex.Message));
                 _log.SheetWarn(n, step, result.Warnings[result.Warnings.Count - 1]);
                 result.FileBytes = new FileInfo(path).Length;
                 return;
             }
 
-            if (pages != 1) result.Warnings.Add("PDF da " + pages + " ta sahifa bor (1 ta kutilgan).");
+            if (pages != 1) result.Warnings.Add(L.PageCount(pages));
 
             PaperSize displayed = box.DisplayedSizeMm;
             double tol = _settings.PageSizeToleranceMm;
             PageOrientationCheck check = PdfPageGeometry.Compare(displayed, plan.ExpectedPage, tol);
-            _log.SheetDebug(n, step, string.Format(CultureInfo.InvariantCulture,
-                "PDF sahifa: {0} (MediaBox {1:0.#}x{2:0.#} pt, /Rotate {3}), kutilgan {4} → {5}",
+            _log.SheetDebug(n, step, string.Format(CultureInfo.InvariantCulture, L.PageDebugFormat,
                 displayed, box.X2 - box.X1, box.Y2 - box.Y1, box.Rotate, plan.ExpectedPage, check));
 
             if (check == PageOrientationCheck.Swapped && allowOrientationRetry)
             {
                 // This device places the drawing the other way round for this paper: learn it and re-plot once.
-                _log.SheetWarn(n, step, "Sahifa yo‘nalishi teskari chiqdi (" + displayed + ", kutilgan " + plan.ExpectedPage +
-                                        ") — boshqa burish bilan qayta chiqarilmoqda.");
+                _log.SheetWarn(n, step, L.OrientationSwapped(displayed, plan.ExpectedPage));
                 bool other = !plan.Rotate90;
                 _media.LearnRotation(plan, other);
                 try
@@ -179,7 +176,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    throw new PlotStepException("verify:page-retry", "Teskari chiqqan PDF ni o‘chirib bo‘lmadi: " + ex.Message, ex);
+                    throw new PlotStepException("verify:page-retry", L.DeleteSwappedFailed(ex.Message), ex);
                 }
                 PlotAndVerify(sheet, plan.WithRotation(other), path, label, result, allowOrientationRetry: false);
                 return;
@@ -187,10 +184,10 @@ namespace AutoPDF.AutoCAD.Plotting
 
             if (check != PageOrientationCheck.Match)
             {
-                string msg = "PDF sahifasi " + displayed + ", kutilgan " + plan.ExpectedPage + ".";
+                string msg = L.PageMismatch(displayed, plan.ExpectedPage);
                 if (plan.Fit == MediaFit.Exact || !PdfPageGeometry.Fits(displayed, plan.TargetPage, tol))
                 {
-                    throw new PlotStepException(step, msg + " Qog‘oz yoki yo‘nalish noto‘g‘ri.");
+                    throw new PlotStepException(step, msg + L.WrongPaperOrOrientation);
                 }
                 result.Warnings.Add(msg);
                 _log.SheetWarn(n, step, msg);
@@ -206,7 +203,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    throw new PlotStepException(step, "PDF ni " + plan.TargetPage + " o‘lchamga qirqib bo‘lmadi: " + ex.Message, ex);
+                    throw new PlotStepException(step, L.CropFailed(plan.TargetPage, ex.Message), ex);
                 }
 
                 step = "verify:cropped-page";
@@ -216,16 +213,16 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    throw new PlotStepException(step, "Qirqilgan PDF ni o‘qib bo‘lmadi: " + ex.Message, ex);
+                    throw new PlotStepException(step, L.CroppedUnreadable(ex.Message), ex);
                 }
                 displayed = box.DisplayedSizeMm;
-                _log.SheetDebug(n, step, "Qirqilgan sahifa: " + displayed);
+                _log.SheetDebug(n, step, L.CroppedPage(displayed));
             }
 
             step = "verify:final-size";
             if (!displayed.ApproximatelyEquals(sheet.Paper.Paper, tol))
             {
-                result.Warnings.Add("Yakuniy PDF o‘lchami " + displayed + ", list " + sheet.Paper.Paper + ".");
+                result.Warnings.Add(L.FinalSizeWarning(displayed, sheet.Paper.Paper));
                 _log.SheetWarn(n, step, result.Warnings[result.Warnings.Count - 1]);
             }
 
@@ -245,15 +242,15 @@ namespace AutoPDF.AutoCAD.Plotting
                     if (run.UserCancelled) result.UserCancelled = true;
                     if (run.EntityCount == 0)
                     {
-                        result.Warnings.Add("Ramka ichida chizma topilmadi (bo‘sh sahifa).");
+                        result.Warnings.Add(L.EmptyPage);
                         _log.SheetWarn(n, "plot:content", result.Warnings[result.Warnings.Count - 1]);
                     }
                     return;
                 }
                 catch (PlotStepException ex) when (_settings.PlotMethod == PlotMethod.Auto && ex.Step != PlotService.CancelledStep)
                 {
-                    _log.SheetWarn(n, ex.Step, "Plot API xatosi: " + ex.Message + " → -PLOT buyrug‘i bilan urinilmoqda.");
-                    result.Warnings.Add("Plot API xatosi [" + ex.Step + "] " + ex.Message + " — -PLOT bilan yaratildi.");
+                    _log.SheetWarn(n, ex.Step, L.ApiFailedFallback(ex.Message));
+                    result.Warnings.Add(L.ApiFailedWarning(ex.Step, ex.Message));
                     TryDelete(path);
                 }
             }

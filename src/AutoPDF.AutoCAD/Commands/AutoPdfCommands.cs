@@ -33,12 +33,12 @@ namespace AutoPDF.AutoCAD.Commands
             }
             catch (System.Exception ex)
             {
-                AutoPdfApp.Log.Error("AUTOPDF kutilmagan xato", ex);
-                doc.Editor.WriteMessage("\nAutoPDF XATO: " + AcadErrors.Describe(ex) + "\nJurnal: " + AutoPdfApp.Log.LogFilePath + "\n");
+                AutoPdfApp.Log.Error("AUTOPDF: " + L.UnexpectedError, ex);
+                doc.Editor.WriteMessage("\n" + L.EchoError + AcadErrors.Describe(ex) + "\n" + L.Log + ": " + AutoPdfApp.Log.LogFilePath + "\n");
                 try
                 {
-                    UzDialog.Show(IntPtr.Zero, "Kutilmagan xato: " + AcadErrors.Describe(ex) + "\n\nJurnal: " + AutoPdfApp.Log.LogFilePath,
-                        Uz.AppTitle, UzDialogKind.Error);
+                    MessageDialog.Show(IntPtr.Zero, L.UnexpectedError + ": " + AcadErrors.Describe(ex) + "\n\n" + L.Log + ": " + AutoPdfApp.Log.LogFilePath,
+                        L.AppTitle, DialogKind.Error);
                 }
                 catch
                 {
@@ -58,6 +58,7 @@ namespace AutoPDF.AutoCAD.Commands
             {
                 var log = AutoPdfApp.Log;
                 PluginSettings settings = new SettingsService(SettingsService.DefaultFilePath, log).Load();
+                L.Current = settings.Language;
                 CustomPaperSizeManager.ClearCache();
                 var media = new CustomPaperSizeManager(log);
                 var plotSettings = new PlotSettingsService(log);
@@ -74,24 +75,24 @@ namespace AutoPDF.AutoCAD.Commands
                     if (!sizes.Any(s => s.ApproximatelyEquals(p, 0.1))) sizes.Add(p);
                 }
 
-                string text = "\n===== AutoPDF Pro — plotter diagnostikasi =====\n";
-                text += "Plotterlar: " + string.Join(", ", media.GetDevices()) + "\n";
+                string text = "\n===== " + L.MediaDiagTitle + " =====\n";
+                text += L.Plotters + ": " + string.Join(", ", media.GetDevices()) + "\n";
                 if (media.DeviceExists(settings.Plotter))
                 {
                     text += media.Describe(media.CanonicalDeviceName(settings.Plotter), sizes, settings);
                 }
                 else
                 {
-                    text += "✖ “" + settings.Plotter + "” plotteri topilmadi.\n";
+                    text += "✖ " + L.PlotterNotFound(settings.Plotter) + "\n";
                 }
 
                 if (!string.IsNullOrWhiteSpace(settings.CustomSizesPlotter) && media.DeviceExists(settings.CustomSizesPlotter))
                 {
-                    text += "Maxsus o‘lchamlar plotteri mavjud: " + settings.CustomSizesPlotter + "\n";
+                    text += L.CustomPlotterPresent(settings.CustomSizesPlotter) + "\n";
                 }
                 else
                 {
-                    text += "Maxsus o‘lchamlar plotteri (“" + settings.CustomSizesPlotter + "”) o‘rnatilmagan — nostandart listlar kesish usulida chiqariladi.\n";
+                    text += L.CustomPlotterMissing(settings.CustomSizesPlotter) + "\n";
                 }
 
                 foreach (string note in new PageSetupService(doc, log).CheckEnvironment(settings, media, plotSettings))
@@ -101,12 +102,12 @@ namespace AutoPDF.AutoCAD.Commands
 
                 doc.Editor.WriteMessage(text);
                 log.Info(text.Replace("\n", Environment.NewLine));
-                doc.Editor.WriteMessage("Batafsil: " + log.LogFilePath + "\n");
+                doc.Editor.WriteMessage(L.Details(log.LogFilePath) + "\n");
             }
             catch (System.Exception ex)
             {
-                AutoPdfApp.Log.Error("AUTOPDFMEDIA xato", ex);
-                doc.Editor.WriteMessage("\nAUTOPDFMEDIA xato: " + AcadErrors.Describe(ex) + "\n");
+                AutoPdfApp.Log.Error(L.MediaCommandError, ex);
+                doc.Editor.WriteMessage("\n" + L.MediaCommandError + AcadErrors.Describe(ex) + "\n");
             }
         }
 
@@ -117,7 +118,7 @@ namespace AutoPDF.AutoCAD.Commands
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             string dir = AutoPdfApp.Log.LogDirectory;
             System.IO.Directory.CreateDirectory(dir);
-            doc?.Editor.WriteMessage("\nAutoPDF jurnali: " + AutoPdfApp.Log.LogFilePath + "\n");
+            doc?.Editor.WriteMessage("\n" + L.LogFileIs(AutoPdfApp.Log.LogFilePath) + "\n");
             Shell.OpenFolder(dir, out _);
         }
     }

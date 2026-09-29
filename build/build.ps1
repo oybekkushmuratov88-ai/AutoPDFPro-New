@@ -24,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
 Push-Location $repo
 try {
-    $version = '2.0.0'
+    $version = '2.1.0'
     $bundle = Join-Path $repo 'artifacts\AutoPDFPro.bundle'
     $dist = Join-Path $repo 'dist'
 

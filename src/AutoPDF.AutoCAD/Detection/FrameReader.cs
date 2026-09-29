@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AutoPDF.Core.Geometry;
 using AutoPDF.Core.Models;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -46,7 +47,7 @@ namespace AutoPDF.AutoCAD.Detection
                 case BlockReference br:
                     return TryReadBlock(br, tr, out frame, out rejectReason, cache ?? new BlockFrameCache());
                 default:
-                    rejectReason = entity.GetType().Name + " ramka emas";
+                    rejectReason = L.NotAFrame(entity.GetType().Name);
                     return false;
             }
         }
@@ -70,7 +71,7 @@ namespace AutoPDF.AutoCAD.Detection
             frame = null;
             if (!pl.Normal.IsParallelTo(Vector3d.ZAxis))
             {
-                reject = "polilinya XY tekisligida emas";
+                reject = L.NotInXyPlane;
                 return false;
             }
 
@@ -86,7 +87,7 @@ namespace AutoPDF.AutoCAD.Detection
 
             if (!RectangleRecognizer.TryRecognize(points, pl.Closed, bulges, out Bounds2d bounds, out RectangleRejectReason why))
             {
-                reject = "to‘rtburchak emas (" + why + ")";
+                reject = L.NotRectangle(why.ToString());
                 return false;
             }
 
@@ -109,12 +110,12 @@ namespace AutoPDF.AutoCAD.Detection
             frame = null;
             if (p2d.PolyType != Poly2dType.SimplePoly)
             {
-                reject = "egri (fit/spline) polilinya";
+                reject = L.CurvedPolyline;
                 return false;
             }
             if (!p2d.Normal.IsParallelTo(Vector3d.ZAxis))
             {
-                reject = "polilinya XY tekisligida emas";
+                reject = L.NotInXyPlane;
                 return false;
             }
 
@@ -130,7 +131,7 @@ namespace AutoPDF.AutoCAD.Detection
 
             if (!RectangleRecognizer.TryRecognize(points, p2d.Closed, bulges, out Bounds2d bounds, out RectangleRejectReason why))
             {
-                reject = "to‘rtburchak emas (" + why + ")";
+                reject = L.NotRectangle(why.ToString());
                 return false;
             }
 
@@ -182,7 +183,7 @@ namespace AutoPDF.AutoCAD.Detection
                     bounds = Bounds2d.FromPoints(pts);
                     note = RectangleRecognizer.TryRecognize(pts, true, null, out _, out _)
                         ? null
-                        : "blok burchak ostida qo‘yilgan — o‘lcham tashqi to‘rtburchak bo‘yicha olindi";
+                        : L.BlockRotated;
                 }
             }
             catch
@@ -198,18 +199,18 @@ namespace AutoPDF.AutoCAD.Detection
                     try { e = br.GeometryExtentsBestFit(); }
                     catch { e = br.GeometricExtents; }
                     bounds = new Bounds2d(e.MinPoint.X, e.MinPoint.Y, e.MaxPoint.X, e.MaxPoint.Y);
-                    note = "blok ichida to‘rtburchak ramka topilmadi — blok chegarasi olindi";
+                    note = L.BlockNoRectangle;
                 }
                 catch (Exception ex)
                 {
-                    reject = "blok chegarasini o‘qib bo‘lmadi: " + ex.Message;
+                    reject = L.BlockExtentsFailed(ex.Message);
                     return false;
                 }
             }
 
             if (bounds.Value.IsEmpty)
             {
-                reject = "blok bo‘sh";
+                reject = L.BlockEmpty;
                 return false;
             }
 

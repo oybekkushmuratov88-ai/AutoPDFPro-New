@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Paper
 {
@@ -148,13 +149,13 @@ namespace AutoPDF.Core.Paper
         {
             switch (insunits)
             {
-                case 0: return "birliksiz (mm deb olinadi)";
-                case 1: return "dyuym";
-                case 2: return "fut";
-                case 4: return "mm";
-                case 5: return "sm";
-                case 6: return "m";
-                case 14: return "dm";
+                case 0: return L.UnitsUnitless;
+                case 1: return L.UnitsInches;
+                case 2: return L.UnitsFeet;
+                case 4: return L.UnitsMm;
+                case 5: return L.UnitsCm;
+                case 6: return L.UnitsM;
+                case 14: return L.UnitsDm;
                 default: return "INSUNITS=" + insunits.ToString(CultureInfo.InvariantCulture);
             }
         }

@@ -14,13 +14,14 @@ AutoPDFPro.sln
 │   ├─ Naming/             OutputFileNamer (01.pdf …)
 │   ├─ Settings/           PluginSettings, SettingsService (XML in %APPDATA%\AutoPDFPro)
 │   ├─ Logging/            LoggingService (%LOCALAPPDATA%\AutoPDFPro\Logs)
-│   └─ Localization/Uz.cs  every Uzbek text
+│   └─ Localization/L*.cs  every user-visible text in O‘zbekcha / Русский / English (+ AppInfo: author)
 ├─ src/AutoPDF.UI          net48 WPF, composed in C# (no XAML), no AutoCAD references
 │   ├─ Main/               MainWindow, MainViewModel, SheetRowViewModel
 │   ├─ Preview/            PreviewWindow (+VM), Cancel / Confirm / Confirm-all
 │   ├─ Settings/           SettingsWindow (+VM)
 │   ├─ Summary/            SummaryWindow
-│   └─ Services/           PdfPreviewRenderer (Windows.Data.Pdf), FolderPicker, UzDialog, Shell
+│   ├─ About/              AboutWindow, AuthorInfo (embedded photo Assets/author.jpg, round avatar)
+│   └─ Services/           PdfPreviewRenderer (Windows.Data.Pdf), FolderPicker, MessageDialog, Shell
 ├─ src/AutoPDF.AutoCAD     net48 x64 — the plug-in loaded by AutoCAD 2024
 │   ├─ AutoPdfApp.cs       IExtensionApplication (logging, dependency resolution)
 │   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFMEDIA, AUTOPDFLOG
@@ -100,6 +101,15 @@ with ISO A0–A5, ГОСТ extended formats and the user list. Among all matches
 deviation wins; equal deviations prefer the smaller scale. Frames that match nothing get a custom paper
 (rounded to 0.1 mm) at the scale whose short side is closest to a standard edge (if within 1 %), else the
 smallest plausible scale. Sheets with a short side < 100 mm are not sheets (title-block cells).
+
+## Localization
+
+`L.Current` (O‘zbekcha / Русский / English) is set from `PluginSettings.Language` when `AUTOPDF` starts and
+when the plug-in loads. Every text is a property or method of the static class `L` that returns the text of
+the current language (`T(uz, ru, en)`), so a missing translation cannot compile and unit tests check that
+every text exists in all three languages. Windows are built in code, therefore a language change simply
+closes and rebuilds the main window (`MainAction.Reload`). Step names in the log (`plot:set-media` …) stay
+English so logs are comparable across languages.
 
 ## Why these technical choices
 

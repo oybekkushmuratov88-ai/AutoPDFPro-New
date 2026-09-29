@@ -1,8 +1,11 @@
-# AutoPDF Pro 2.0 — AutoCAD 2024 plug-in
+# AutoPDF Pro 2.1 — AutoCAD 2024 plug-in
+
+**Author: Kushmuratov Oybek** · © 2026 Kushmuratov Oybek. All rights reserved.
 
 Finds drawing-sheet frames in model space and exports **each sheet to its own PDF** (`01.pdf`, `02.pdf`, …)
-with the correct paper size, orientation, scale and plot style. Uzbek user interface, works in the
-Russian (and any other) AutoCAD 2024.
+with the correct paper size, orientation, scale and plot style. User interface in **O‘zbekcha, Русский
+and English** (switch in *Sozlamalar → Til · Язык · Language*); works in the Russian (and any other)
+AutoCAD 2024.
 
 * Command: **`AUTOPDF`** (also `AUTOPDFMEDIA` — plotter diagnostics, `AUTOPDFLOG` — open the log folder)
 * AutoCAD 2024 (R24.3), Windows 10/11 64-bit, .NET Framework 4.8
@@ -22,16 +25,18 @@ Russian (and any other) AutoCAD 2024.
 | Verification | File exists, not empty, valid PDF, page size/orientation checked (auto-corrected once if turned). |
 | Preview | After each PDF: **Bekor qilish** (cancel) · **Tasdiqlash** (confirm) · **Tasdiqlash va qolganlarini avtomatik yaratish** (confirm and do the rest). |
 | Errors | Logged with sheet number and exact step; the batch continues (or stops, if configured); final report. |
+| Languages | O‘zbekcha (default), Русский, English — every window, message, command-line prompt and log line. |
+| About | The author's photo and name in the top-right corner of the main window; click it for the *About* window. |
 
 ## Installation
 
-### From the release zip (`AutoPDFPro-2.0.0.zip`)
+### From the release zip (`AutoPDFPro-2.1.0.zip`)
 
 1. Close AutoCAD.
 2. Unzip, right-click **`install.bat`** → *Run* (asks for administrator rights; installs for all users to
    `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle`).
    Without admin rights use **`install-peruser.bat`** (installs to `%APPDATA%\Autodesk\ApplicationPlugins`).
-3. Start AutoCAD 2024 → the command line shows `AutoPDF Pro v2.0.0 yuklandi` → type **`AUTOPDF`**.
+3. Start AutoCAD 2024 → the command line shows `AutoPDF Pro v2.1.0 yuklandi` → type **`AUTOPDF`**.
 
 The installer unblocks the DLLs and moves an older AutoPDF Pro bundle to
 `%LOCALAPPDATA%\AutoPDFPro\Backup\…` so the `AUTOPDF` command is not defined twice.
@@ -65,7 +70,7 @@ Copy the folder `AutoPDFPro.bundle` to `C:\Program Files\Autodesk\ApplicationPlu
 7. Birinchi PDF ko‘rsatiladi: *Tasdiqlash* / *Tasdiqlash va qolganlarini avtomatik yaratish* / *Bekor qilish*.
 8. Oxirida hisobot: nechta yaratildi, qaysi list qaysi bosqichda xato berdi; *Papkani ochish*, *Jurnalni ochish*.
 
-**Sozlamalar**: plotter (DWG To PDF.pc3), plot uslubi (monochrome.ctb), chiziq qalinliklari, masshtab
+**Sozlamalar**: interfeys tili (O‘zbekcha / Русский / English), plotter (DWG To PDF.pc3), plot uslubi (monochrome.ctb), chiziq qalinliklari, masshtab
 (avto yoki qat’iy), qo‘shimcha formatlar, o‘lcham tolerantligi, fayl nomi shabloni (`{N}`, `{DWG}`,
 `{FORMAT}`), mavjud fayllar siyosati, xatolik siyosati (davom etish / to‘xtatish), ko‘rib chiqish,
 plot usuli (API / -PLOT).
@@ -87,7 +92,7 @@ dotnet build AutoPDFPro.sln -c Release
 dotnet test  tests\AutoPDF.Core.Tests
 ```
 
-Output: `artifacts\AutoPDFPro.bundle` (ready to copy) and `dist\AutoPDFPro-2.0.0.zip`.
+Output: `artifacts\AutoPDFPro.bundle` (ready to copy) and `dist\AutoPDFPro-2.1.0.zip`.
 
 ## Documentation
 
@@ -96,11 +101,26 @@ Output: `artifacts\AutoPDFPro.bundle` (ready to copy) and `dist\AutoPDFPro-2.0.0
 * [docs/CUSTOM_PAPER_SIZES.md](docs/CUSTOM_PAPER_SIZES.md) — 630×297, 891×420, 1260×594 …
 * [docs/DEBUGGING.md](docs/DEBUGGING.md) — logs, step names, `AUTOPDFMEDIA`, Visual Studio debugging
 
+## Languages / Tillar / Языки
+
+*Sozlamalar → Til · Язык · Language* → **O‘zbekcha**, **Русский** or **English** → *Saqlash*. The window
+reopens in the chosen language; the choice is remembered (settings file) and also used for the
+command-line prompts and the log. All texts live in `src/AutoPDF.Core/Localization/L*.cs`, each text with
+its three translations side by side — to correct a translation, edit it there and rebuild.
+
+## Changelog
+
+* **2.1.0** — Interface in three languages (O‘zbekcha / Русский / English) with a language switch in
+  Settings; author badge with photo in the main window and an *About* window (Kushmuratov Oybek); author
+  and copyright in the DLL properties, the bundle manifest and the installer; wider left panel and
+  wrapping labels (the “Namuna ramka + diapazon” option was cut off).
+* **2.0.0** — First version of the new implementation.
+
 ## Status / known limitations
 
-* Built and unit-tested (Core logic) without AutoCAD; the AutoCAD-facing code compiles against the
-  official AutoCAD 2024 reference assemblies but must be verified in AutoCAD 2024 with a real drawing.
-  Please run `AUTOPDFMEDIA` and one export on the target PC and send the log if anything fails.
+* Version 2.0.0 was confirmed working in AutoCAD 2024 by the author. 2.1.0 adds the languages, the author
+  badge/About window and the language setting; the detection and plotting logic is unchanged — only its
+  messages are now translated.
 * Sheets are searched in **model space**. Paper-space layouts are not exported by this command.
 * Rotated (non-orthogonal) frames are plotted by their axis-aligned bounding box (a warning is shown).
 * If *DWG To PDF → PDF Options → Open in PDF viewer when done* is enabled, turn it off for batch export.

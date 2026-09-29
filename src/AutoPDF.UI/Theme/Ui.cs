@@ -156,6 +156,42 @@ namespace AutoPDF.UI.Theme
             return template;
         }
 
+        /// <summary>
+        /// Transparent button for clickable content on the dark header (author badge): a soft highlight on
+        /// hover/keyboard focus, no chrome.
+        /// </summary>
+        public static Button FlatButton(object content, ICommand command, string tooltip)
+        {
+            var template = new ControlTemplate(typeof(Button));
+            var bd = new FrameworkElementFactory(typeof(Border), "bd");
+            bd.SetValue(Border.CornerRadiusProperty, new CornerRadius(28));
+            bd.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            bd.SetValue(Border.PaddingProperty, new Thickness(10, 3, 4, 3));
+            var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            bd.AppendChild(presenter);
+            template.VisualTree = bd;
+
+            Brush highlight = Palette.Hex("#26FFFFFF");
+            var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            over.Setters.Add(new Setter(Border.BackgroundProperty, highlight, "bd"));
+            template.Triggers.Add(over);
+            var focus = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
+            focus.Setters.Add(new Setter(Border.BackgroundProperty, highlight, "bd"));
+            template.Triggers.Add(focus);
+
+            return new Button
+            {
+                Content = content,
+                Command = command,
+                ToolTip = tooltip,
+                Template = template,
+                Cursor = Cursors.Hand,
+                Focusable = true,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
         /// <summary>White rounded panel with a bold title.</summary>
         public static Border Card(object header, UIElement content, Thickness? margin = null)
         {
@@ -225,7 +261,8 @@ namespace AutoPDF.UI.Theme
         {
             var r = new RadioButton
             {
-                Content = text,
+                // Wrapping text: long labels (and the longer Russian/English ones) never get clipped.
+                Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
                 GroupName = group,
                 Margin = new Thickness(0, 3, 0, 3),
                 Foreground = Palette.Text,

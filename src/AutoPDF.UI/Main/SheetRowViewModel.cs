@@ -9,7 +9,7 @@ using AutoPDF.UI.Theme;
 
 namespace AutoPDF.UI.Main
 {
-    /// <summary>One row of the "detected sheets" table: # | Blok | Eni | Bo‘yi | Qog‘oz | Holat.</summary>
+    /// <summary>One row of the "detected sheets" table: # | Block | Width | Height | Paper | Status.</summary>
     public sealed class SheetRowViewModel : ObservableObject
     {
         public SheetRowViewModel(SheetModel model)
@@ -24,7 +24,7 @@ namespace AutoPDF.UI.Main
         public string WidthText => FormatUnits(Model.Width);
         public string HeightText => FormatUnits(Model.Height);
         public string PaperText => Model.Paper != null ? Model.Paper.DisplayText : "?";
-        public string StatusText => Uz.StatusText(Model.Status);
+        public string StatusText => L.StatusText(Model.Status);
 
         public Brush StatusForeground
         {
@@ -71,18 +71,18 @@ namespace AutoPDF.UI.Main
             get
             {
                 var sb = new StringBuilder();
-                sb.Append("List ").Append(Model.Number.ToString(CultureInfo.InvariantCulture));
+                sb.Append(L.Sheet).Append(' ').Append(Model.Number.ToString(CultureInfo.InvariantCulture));
                 if (Model.Paper != null)
                 {
-                    sb.Append("\nFormat: ").Append(Model.Paper.FormatName ?? "nostandart");
-                    sb.Append("\nQog‘oz: ").Append(Model.Paper.Paper);
-                    sb.Append("\nMasshtab: ").Append(Model.Paper.ScaleText);
-                    if (!Model.Paper.IsValid && !string.IsNullOrEmpty(Model.Paper.Problem)) sb.Append("\n").Append(Model.Paper.Problem);
+                    sb.Append('\n').Append(L.TipFormat).Append(": ").Append(Model.Paper.FormatName ?? L.TipNonStandard);
+                    sb.Append('\n').Append(L.TipPaper).Append(": ").Append(Model.Paper.Paper);
+                    sb.Append('\n').Append(L.TipScale).Append(": ").Append(Model.Paper.ScaleText);
+                    if (!Model.Paper.IsValid && !string.IsNullOrEmpty(Model.Paper.Problem)) sb.Append('\n').Append(Model.Paper.Problem);
                 }
-                if (!string.IsNullOrEmpty(Model.Layer)) sb.Append("\nQatlam: ").Append(Model.Layer);
-                if (!string.IsNullOrEmpty(Model.PlanDescription)) sb.Append("\nPlot: ").Append(Model.PlanDescription);
-                if (!string.IsNullOrEmpty(Model.StatusDetail)) sb.Append("\n").Append(Model.StatusDetail);
-                if (!string.IsNullOrEmpty(Model.OutputPath)) sb.Append("\nFayl: ").Append(Model.OutputPath);
+                if (!string.IsNullOrEmpty(Model.Layer)) sb.Append('\n').Append(L.TipLayer).Append(": ").Append(Model.Layer);
+                if (!string.IsNullOrEmpty(Model.PlanDescription)) sb.Append('\n').Append(L.TipPlot).Append(": ").Append(Model.PlanDescription);
+                if (!string.IsNullOrEmpty(Model.StatusDetail)) sb.Append('\n').Append(Model.StatusDetail);
+                if (!string.IsNullOrEmpty(Model.OutputPath)) sb.Append('\n').Append(L.TipFile).Append(": ").Append(Model.OutputPath);
                 sb.Append("\nHandle: ").Append(Model.Handle);
                 return sb.ToString();
             }

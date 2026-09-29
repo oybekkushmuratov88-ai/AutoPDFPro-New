@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using AutoPDF.Core.Logging;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.ApplicationServices;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using AcException = Autodesk.AutoCAD.Runtime.Exception;
@@ -77,7 +78,7 @@ namespace AutoPDF.AutoCAD.Infrastructure
             }
             catch (Exception ex)
             {
-                _log?.Warn("SysVar " + name + " o‘rnatilmadi: " + AcadErrors.Describe(ex));
+                _log?.Warn(L.SysVarSetFailed(name, AcadErrors.Describe(ex)));
                 return false;
             }
         }
@@ -92,7 +93,7 @@ namespace AutoPDF.AutoCAD.Infrastructure
                 }
                 catch (Exception ex)
                 {
-                    _log?.Warn("SysVar " + _saved[i].Key + " tiklanmadi: " + AcadErrors.Describe(ex));
+                    _log?.Warn(L.SysVarRestoreFailed(_saved[i].Key, AcadErrors.Describe(ex)));
                 }
             }
             _saved.Clear();
@@ -117,8 +118,8 @@ namespace AutoPDF.AutoCAD.Infrastructure
             if (e.Level == LogLevel.Debug) return;
             try
             {
-                string prefix = e.Level == LogLevel.Error ? "AutoPDF XATO: " : e.Level == LogLevel.Warning ? "AutoPDF ogohlantirish: " : "AutoPDF: ";
-                string sheet = e.Sheet.HasValue ? "[List " + e.Sheet.Value.ToString("00", CultureInfo.InvariantCulture) + "] " : string.Empty;
+                string prefix = e.Level == LogLevel.Error ? L.EchoError : e.Level == LogLevel.Warning ? L.EchoWarning : "AutoPDF: ";
+                string sheet = e.Sheet.HasValue ? "[" + L.Sheet + " " + e.Sheet.Value.ToString("00", CultureInfo.InvariantCulture) + "] " : string.Empty;
                 string step = e.Level >= LogLevel.Warning && !string.IsNullOrEmpty(e.Step) ? "[" + e.Step + "] " : string.Empty;
                 string message = e.Message ?? string.Empty;
                 int newline = message.IndexOf('\n');

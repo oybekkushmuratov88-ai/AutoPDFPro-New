@@ -5,6 +5,8 @@ using System.Windows.Data;
 using System.Windows.Interop;
 using System.Windows.Media;
 using AutoPDF.Core.Localization;
+using AutoPDF.UI.About;
+using AutoPDF.UI.Mvvm;
 using AutoPDF.UI.Services;
 using AutoPDF.UI.Theme;
 
@@ -13,6 +15,7 @@ namespace AutoPDF.UI.Main
     /// <summary>
     /// Main AutoPDF Pro window: detection method, sorting, start number, output folder,
     /// detected sheets table and the Scan / Check / Create PDF / Settings buttons.
+    /// The header shows the author (photo, name, version); clicking it opens the About window.
     /// </summary>
     public sealed class MainWindow : Window
     {
@@ -22,20 +25,18 @@ namespace AutoPDF.UI.Main
         {
             _vm = vm ?? throw new ArgumentNullException(nameof(vm));
             DataContext = vm;
-            Ui.ApplyWindowDefaults(this, Uz.AppTitle, 1080, 700);
-            MinWidth = 900;
-            MinHeight = 560;
+            Ui.ApplyWindowDefaults(this, L.AppTitle, 1120, 760);
+            MinWidth = 960;
+            MinHeight = 600;
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
             vm.CloseRequested += _ => Close();
-            vm.PickFolder = current => FolderPicker.Pick(new WindowInteropHelper(this).Handle, Uz.OutputFolder, current);
-            vm.ShowMessage = message => UzDialog.Show(this, message, Uz.AppTitle, UzDialogKind.Warning);
+            vm.PickFolder = current => FolderPicker.Pick(new WindowInteropHelper(this).Handle, L.OutputFolder, current);
+            vm.ShowMessage = message => MessageDialog.Show(this, message, L.AppTitle, DialogKind.Warning);
 
             var root = new DockPanel();
 
-            var version = new TextBlock { Foreground = Palette.Hex("#DBEAFE"), VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
-            version.SetBinding(TextBlock.TextProperty, new Binding(nameof(MainViewModel.VersionText)) { Mode = BindingMode.OneWay });
-            Border header = Ui.Header(Uz.AppTitle, Uz.AppSubtitle, version);
+            Border header = Ui.Header(L.AppTitle, L.AppSubtitle, BuildAuthorBadge());
             DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
@@ -44,7 +45,7 @@ namespace AutoPDF.UI.Main
             root.Children.Add(footer);
 
             var body = new Grid { Margin = new Thickness(12, 12, 12, 2) };
-            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
             body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             var left = new ScrollViewer
@@ -64,34 +65,58 @@ namespace AutoPDF.UI.Main
             Content = root;
         }
 
+        /// <summary>Author name + version + round photo at the top right; opens the About window.</summary>
+        private UIElement BuildAuthorBadge()
+        {
+            var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+            texts.Children.Add(new TextBlock
+            {
+                Text = AuthorInfo.Name,
+                Foreground = Brushes.White,
+                FontSize = 13.5,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right
+            });
+            var version = new TextBlock { Foreground = Palette.Hex("#DBEAFE"), FontSize = 11.5, HorizontalAlignment = HorizontalAlignment.Right };
+            version.SetBinding(TextBlock.TextProperty, new Binding(nameof(MainViewModel.VersionText)) { Mode = BindingMode.OneWay });
+            texts.Children.Add(version);
+
+            var content = new StackPanel { Orientation = Orientation.Horizontal };
+            content.Children.Add(texts);
+            content.Children.Add(AuthorInfo.Avatar(46, 2, Brushes.White));
+
+            return Ui.FlatButton(content, new RelayCommand(ShowAbout), L.AboutTooltip);
+        }
+
+        private void ShowAbout()
+        {
+            new AboutWindow(_vm.VersionText?.TrimStart('v')) { Owner = this }.ShowDialog();
+        }
+
         private StackPanel BuildLeftColumn()
         {
             var column = new StackPanel();
 
             // Detection method
             var detection = new StackPanel();
-            detection.Children.Add(Ui.Radio(Uz.DetectManual, nameof(MainViewModel.IsModeManual), "mode",
-                "Ramkalarni o‘zingiz tanlaysiz (bittalab yoki ramka bilan o‘rab)."));
-            detection.Children.Add(Ui.Radio(Uz.DetectBlockName, nameof(MainViewModel.IsModeBlockName), "mode",
-                "Model fazosidagi shu nomli barcha bloklar list deb olinadi."));
-            var blockNames = Ui.Input(nameof(MainViewModel.BlockNames), tooltip: "Masalan: Ramka_A3, Format*, SHTAMP?");
-            blockNames.Margin = new Thickness(22, 2, 0, 4);
-            blockNames.SetBinding(IsEnabledProperty, new Binding(nameof(MainViewModel.IsModeBlockName)) { Mode = BindingMode.OneWay });
-            var blockHint = Ui.Hint(Uz.BlockNamesLabel, 0);
+            detection.Children.Add(Ui.Radio(L.DetectManual, nameof(MainViewModel.IsModeManual), "mode", L.DetectManualHint));
+            detection.Children.Add(Ui.Radio(L.DetectBlockName, nameof(MainViewModel.IsModeBlockName), "mode", L.DetectBlockNameHint));
+            var blockHint = Ui.Hint(L.BlockNamesLabel, 0);
             blockHint.Margin = new Thickness(22, 0, 0, 0);
             detection.Children.Add(blockHint);
+            var blockNames = Ui.Input(nameof(MainViewModel.BlockNames), tooltip: L.BlockNamesExample);
+            blockNames.Margin = new Thickness(22, 2, 0, 4);
+            blockNames.SetBinding(IsEnabledProperty, new Binding(nameof(MainViewModel.IsModeBlockName)) { Mode = BindingMode.OneWay });
             detection.Children.Add(blockNames);
-            detection.Children.Add(Ui.Radio(Uz.DetectSample, nameof(MainViewModel.IsModeSample), "mode",
-                "Bitta ramkani ko‘rsatasiz — chizmadagi xuddi shunday (shu qatlamdagi) barcha ramkalar topiladi."));
-            detection.Children.Add(Ui.Radio(Uz.DetectSampleRange, nameof(MainViewModel.IsModeSampleRange), "mode",
-                "Bitta ramkani ko‘rsatasiz, so‘ng hududni tanlaysiz — faqat shu hududdagi o‘xshash ramkalar olinadi."));
-            column.Children.Add(Ui.Card(Uz.DetectionMethod, detection));
+            detection.Children.Add(Ui.Radio(L.DetectSample, nameof(MainViewModel.IsModeSample), "mode", L.DetectSampleHint));
+            detection.Children.Add(Ui.Radio(L.DetectSampleRange, nameof(MainViewModel.IsModeSampleRange), "mode", L.DetectSampleRangeHint));
+            column.Children.Add(Ui.Card(L.DetectionMethod, detection));
 
             // Sorting
             var sorting = new StackPanel();
-            sorting.Children.Add(Ui.Radio(Uz.SortLeftToRight, nameof(MainViewModel.IsSortLeftToRight), "sort", Uz.SortLeftToRightHint));
-            sorting.Children.Add(Ui.Radio(Uz.SortTopToBottom, nameof(MainViewModel.IsSortTopToBottom), "sort", Uz.SortTopToBottomHint));
-            column.Children.Add(Ui.Card(Uz.SortDirection, sorting));
+            sorting.Children.Add(Ui.Radio(L.SortLeftToRight, nameof(MainViewModel.IsSortLeftToRight), "sort", L.SortLeftToRightHint));
+            sorting.Children.Add(Ui.Radio(L.SortTopToBottom, nameof(MainViewModel.IsSortTopToBottom), "sort", L.SortTopToBottomHint));
+            column.Children.Add(Ui.Card(L.SortDirection, sorting));
 
             // Start number
             var start = new StackPanel();
@@ -102,7 +127,7 @@ namespace AutoPDF.UI.Main
             var preview = Ui.BoundText(nameof(MainViewModel.FileNamePreview), Palette.Muted, 11.5);
             preview.Margin = new Thickness(0, 6, 0, 0);
             start.Children.Add(preview);
-            column.Children.Add(Ui.Card(Uz.StartNumber, start));
+            column.Children.Add(Ui.Card(L.StartNumber, start));
 
             // Output folder
             var folder = new StackPanel();
@@ -110,12 +135,12 @@ namespace AutoPDF.UI.Main
             folderBox.SetBinding(ToolTipProperty, new Binding(nameof(MainViewModel.OutputFolder)) { Mode = BindingMode.OneWay });
             folder.Children.Add(folderBox);
             var folderButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            var choose = Ui.Button(Uz.Choose, _vm.ChooseFolderCommand);
+            var choose = Ui.Button(L.Choose, _vm.ChooseFolderCommand);
             choose.Margin = new Thickness(0);
             folderButtons.Children.Add(choose);
-            folderButtons.Children.Add(Ui.Button(Uz.Open, _vm.OpenFolderCommand));
+            folderButtons.Children.Add(Ui.Button(L.Open, _vm.OpenFolderCommand));
             folder.Children.Add(folderButtons);
-            column.Children.Add(Ui.Card(Uz.OutputFolder, folder));
+            column.Children.Add(Ui.Card(L.OutputFolder, folder));
 
             return column;
         }
@@ -137,7 +162,7 @@ namespace AutoPDF.UI.Main
 
             var empty = new TextBlock
             {
-                Text = Uz.NoSheetsYet,
+                Text = L.NoSheetsYet,
                 Foreground = Palette.Muted,
                 TextWrapping = TextWrapping.Wrap,
                 TextAlignment = TextAlignment.Center,
@@ -207,15 +232,15 @@ namespace AutoPDF.UI.Main
             cellStyle.Triggers.Add(selected);
             grid.CellStyle = cellStyle;
 
-            grid.Columns.Add(TextColumn(Uz.ColNumber, nameof(SheetRowViewModel.Number), new DataGridLength(48), TextAlignment.Right));
-            grid.Columns.Add(TextColumn(Uz.ColBlock, nameof(SheetRowViewModel.BlockName), new DataGridLength(1.3, DataGridLengthUnitType.Star)));
-            grid.Columns.Add(TextColumn(Uz.ColWidth, nameof(SheetRowViewModel.WidthText), new DataGridLength(80), TextAlignment.Right));
-            grid.Columns.Add(TextColumn(Uz.ColHeight, nameof(SheetRowViewModel.HeightText), new DataGridLength(80), TextAlignment.Right));
-            grid.Columns.Add(TextColumn(Uz.ColPaper, nameof(SheetRowViewModel.PaperText), new DataGridLength(1.4, DataGridLengthUnitType.Star)));
+            grid.Columns.Add(TextColumn(L.ColNumber, nameof(SheetRowViewModel.Number), new DataGridLength(48), TextAlignment.Right));
+            grid.Columns.Add(TextColumn(L.ColBlock, nameof(SheetRowViewModel.BlockName), new DataGridLength(1.3, DataGridLengthUnitType.Star)));
+            grid.Columns.Add(TextColumn(L.ColWidth, nameof(SheetRowViewModel.WidthText), new DataGridLength(84), TextAlignment.Right));
+            grid.Columns.Add(TextColumn(L.ColHeight, nameof(SheetRowViewModel.HeightText), new DataGridLength(84), TextAlignment.Right));
+            grid.Columns.Add(TextColumn(L.ColPaper, nameof(SheetRowViewModel.PaperText), new DataGridLength(1.4, DataGridLengthUnitType.Star)));
             grid.Columns.Add(new DataGridTemplateColumn
             {
-                Header = Uz.ColStatus,
-                Width = new DataGridLength(150),
+                Header = L.ColStatus,
+                Width = new DataGridLength(160),
                 CellTemplate = StatusTemplate()
             });
             return grid;
@@ -261,15 +286,15 @@ namespace AutoPDF.UI.Main
         {
             var dock = new DockPanel { LastChildFill = true };
 
-            var settings = Ui.Button("⚙  " + Uz.Settings, _vm.SettingsCommand, ButtonKind.Secondary, "Plotter, CTB, masshtab, qog‘oz o‘lchamlari va boshqa sozlamalar");
+            var settings = Ui.Button("⚙  " + L.Settings, _vm.SettingsCommand, ButtonKind.Secondary, L.SettingsHint);
             settings.Margin = new Thickness(0);
             DockPanel.SetDock(settings, Dock.Left);
             dock.Children.Add(settings);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal };
-            actions.Children.Add(Ui.Button(Uz.Scan, _vm.ScanCommand, ButtonKind.Secondary, Uz.ScanHint));
-            actions.Children.Add(Ui.Button(Uz.Check, _vm.CheckCommand, ButtonKind.Secondary, Uz.CheckHint));
-            var create = Ui.Button(Uz.CreatePdf, _vm.CreatePdfCommand, ButtonKind.Primary, Uz.CreatePdfHint);
+            actions.Children.Add(Ui.Button(L.Scan, _vm.ScanCommand, ButtonKind.Secondary, L.ScanHint));
+            actions.Children.Add(Ui.Button(L.Check, _vm.CheckCommand, ButtonKind.Secondary, L.CheckHint));
+            var create = Ui.Button(L.CreatePdf, _vm.CreatePdfCommand, ButtonKind.Primary, L.CreatePdfHint);
             create.MinWidth = 150;
             create.IsDefault = true;
             actions.Children.Add(create);

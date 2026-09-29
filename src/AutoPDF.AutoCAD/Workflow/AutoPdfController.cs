@@ -45,12 +45,16 @@ namespace AutoPDF.AutoCAD.Workflow
         private readonly PageSetupService _pageSetup;
         private List<SheetModel> _sheets = new List<SheetModel>();
 
+        /// <summary>Status line for the next main window after it was reloaded (language change).</summary>
+        private string _statusAfterReload;
+
         public AutoPdfController(Document doc)
         {
             _doc = doc;
             _log = AutoPdfApp.Log;
             _settingsService = new SettingsService(SettingsService.DefaultFilePath, _log);
             _settings = _settingsService.Load();
+            L.Current = _settings.Language;
             _log.Verbose = _settings.VerboseLog;
             CustomPaperSizeManager.ClearCache(); // pick up PC3 files edited since the last run
             _media = new CustomPaperSizeManager(_log);
@@ -71,7 +75,7 @@ namespace AutoPDF.AutoCAD.Workflow
         {
             _log.Info("===== AUTOPDF: " + _doc.Name + " =====");
             string previousLayout = _pageSetup.EnsureModelSpace();
-            string status = "Chizma birliklari: " + DrawingUnits.Describe((int)_doc.Database.Insunits) + ". " + Uz.NoSheetsYet;
+            string status = L.UnitsStatus(DrawingUnits.Describe((int)_doc.Database.Insunits)) + L.NoSheetsYet;
 
             using (new EditorEcho(_log, _doc))
             {
@@ -93,6 +97,9 @@ namespace AutoPDF.AutoCAD.Workflow
                             case MainAction.CreatePdf:
                                 status = Export();
                                 break;
+                            case MainAction.Reload:
+                                status = _statusAfterReload ?? status;
+                                break;
                             default:
                                 return;
                         }
@@ -101,7 +108,7 @@ namespace AutoPDF.AutoCAD.Workflow
                 finally
                 {
                     _pageSetup.RestoreLayout(previousLayout);
-                    _log.Info("===== AUTOPDF tugadi =====");
+                    _log.Info(L.RunFinished);
                 }
             }
         }
@@ -115,7 +122,7 @@ namespace AutoPDF.AutoCAD.Workflow
 
             vm.OpenFolderRequested += folder =>
             {
-                if (!Shell.OpenFolder(folder, out string error)) UzDialog.Show(window, error, Uz.AppTitle, UzDialogKind.Warning);
+                if (!Shell.OpenFolder(folder, out string error)) MessageDialog.Show(window, error, L.AppTitle, DialogKind.Warning);
             };
             vm.OpenSettingsRequested += () =>
             {
@@ -126,9 +133,18 @@ namespace AutoPDF.AutoCAD.Workflow
 
                 _settingsService.Save(_settings);
                 _log.Verbose = _settings.VerboseLog;
+                if (svm.LanguageChanged)
+                {
+                    // Every text is built when a window is created: switch the language and rebuild the window.
+                    L.Current = _settings.Language;
+                    ReResolvePapers();
+                    _statusAfterReload = L.SettingsSaved;
+                    vm.RequestReload();
+                    return;
+                }
                 ReResolvePapers();
                 vm.RefreshRows();
-                vm.StatusMessage = "Sozlamalar saqlandi.";
+                vm.StatusMessage = L.SettingsSaved;
             };
 
             AcApp.ShowModalWindow(AcadWindow, window, false);
@@ -159,15 +175,15 @@ namespace AutoPDF.AutoCAD.Workflow
             }
             catch (Exception ex)
             {
-                _log.Error("Aniqlashda xato", ex);
-                return "Aniqlashda xato: " + AcadErrors.Describe(ex);
+                _log.Error(L.DetectionFailed, ex);
+                return L.DetectionFailed + ": " + AcadErrors.Describe(ex);
             }
 
-            if (outcome.Cancelled) return outcome.Message ?? "Bekor qilindi.";
+            if (outcome.Cancelled) return outcome.Message ?? L.Cancelled;
 
             _sheets = SheetSorter.Sort(outcome.Sheets, _settings.SortDirection, _settings.StartNumber).ToList();
             UpdatePlans(_sheets);
-            return _sheets.Count == 0 ? Uz.NoSheetsFound + " " + outcome.Message : outcome.Message;
+            return _sheets.Count == 0 ? L.NoSheetsFound + " " + outcome.Message : outcome.Message;
         }
 
         /// <summary>Re-run paper detection after settings changed (scale, custom formats, tolerance …).</summary>
@@ -193,7 +209,7 @@ namespace AutoPDF.AutoCAD.Workflow
                 if (s.Paper == null || !s.Paper.IsValid)
                 {
                     s.Status = SheetStatus.Error;
-                    s.StatusDetail = s.Paper?.Problem ?? "Qog‘oz o‘lchami aniqlanmadi.";
+                    s.StatusDetail = s.Paper?.Problem ?? L.PaperUnknown;
                     s.PlanDescription = null;
                     continue;
                 }
@@ -231,7 +247,7 @@ namespace AutoPDF.AutoCAD.Workflow
         private string Check()
         {
             List<string> notes = _pageSetup.CheckEnvironment(_settings, _media, _plotSettings);
-            foreach (string n in notes) _log.Info("Tekshiruv: " + n);
+            foreach (string n in notes) _log.Info(L.CheckLog(n));
             UpdatePlans(_sheets);
 
             int ready = _sheets.Count(s => s.Status == SheetStatus.Ready);
@@ -241,7 +257,7 @@ namespace AutoPDF.AutoCAD.Workflow
 
             if (notes.Any(n => n.StartsWith("✖", StringComparison.Ordinal)))
             {
-                UzDialog.Show(AcadWindow, string.Join("\n", notes), Uz.Check, UzDialogKind.Error);
+                MessageDialog.Show(AcadWindow, string.Join("\n", notes), L.Check, DialogKind.Error);
             }
 
             using (var highlighter = new SheetHighlighter())
@@ -251,31 +267,29 @@ namespace AutoPDF.AutoCAD.Workflow
                     highlighter.Show(_sheets);
                     SheetHighlighter.ZoomTo(_doc.Editor, _sheets, _pageSetup.GetWcsToDcs());
                     _doc.Editor.UpdateScreen();
-                    _doc.Editor.GetString(new PromptStringOptions(Uz.PromptReview) { AllowSpaces = true });
+                    _doc.Editor.GetString(new PromptStringOptions(L.PromptReview) { AllowSpaces = true });
                 }
                 catch (Exception ex)
                 {
-                    _log.Warn("Listlarni chizmada ko‘rsatib bo‘lmadi: " + AcadErrors.Describe(ex));
+                    _log.Warn(L.HighlightFailed(AcadErrors.Describe(ex)));
                 }
             }
             try { _doc.Editor.UpdateScreen(); } catch { /* transients already erased */ }
 
-            return string.Format(CultureInfo.InvariantCulture,
-                "Tekshiruv: {0} tayyor, {1} kesish bilan, {2} ogohlantirish, {3} xato. {4}",
-                ready, crop, warn, err, string.Join("  ", notes.Where(n => !n.StartsWith("ℹ", StringComparison.Ordinal))));
+            return L.CheckSummary(ready, crop, warn, err, string.Join("  ", notes.Where(n => !n.StartsWith("ℹ", StringComparison.Ordinal))));
         }
 
         // ---- Export --------------------------------------------------------------------------
 
         private string Export()
         {
-            if (_sheets.Count == 0) return Uz.ScanFirst;
+            if (_sheets.Count == 0) return L.ScanFirst;
 
             string folder = _settings.OutputFolder;
             if (!EnsureFolder(folder, out string folderError))
             {
-                UzDialog.Show(AcadWindow, Uz.FolderNotWritable + " " + folder + "\n" + folderError, Uz.AppTitle, UzDialogKind.Error);
-                return Uz.FolderNotWritable + " " + folder;
+                MessageDialog.Show(AcadWindow, L.FolderNotWritable + " " + folder + "\n" + folderError, L.AppTitle, DialogKind.Error);
+                return L.FolderNotWritable + " " + folder;
             }
 
             // Output names: 01.pdf, 02.pdf … (unique inside the batch).
@@ -299,11 +313,9 @@ namespace AutoPDF.AutoCAD.Workflow
                 OverwritePolicy policy = _settings.OverwritePolicy;
                 if (policy == OverwritePolicy.Ask)
                 {
-                    UzDialogResult answer = UzDialog.Show(AcadWindow,
-                        string.Format(CultureInfo.InvariantCulture, Uz.ExistingFilesQuestion, existing.Count),
-                        Uz.AppTitle, UzDialogKind.YesNoCancel);
-                    if (answer == UzDialogResult.Cancel) return "Eksport bekor qilindi.";
-                    policy = answer == UzDialogResult.Yes ? OverwritePolicy.Overwrite : OverwritePolicy.Rename;
+                    DialogAnswer answer = MessageDialog.Show(AcadWindow, L.ExistingFilesQuestion(existing.Count), L.AppTitle, DialogKind.YesNoCancel);
+                    if (answer == DialogAnswer.Cancel) return L.ExportCancelled;
+                    policy = answer == DialogAnswer.Yes ? OverwritePolicy.Overwrite : OverwritePolicy.Rename;
                 }
 
                 foreach (SheetModel s in existing)
@@ -316,7 +328,7 @@ namespace AutoPDF.AutoCAD.Workflow
                         planned[s] = unique;
                     }
                 }
-                _log.Info("Mavjud fayllar: " + existing.Count + " — siyosat: " + policy + ".");
+                _log.Info(L.ExistingPolicy(existing.Count, policy));
             }
 
             _log.ResetSession();
@@ -331,8 +343,7 @@ namespace AutoPDF.AutoCAD.Workflow
                 s.OutputPath = planned[s];
             }
 
-            _log.Info(string.Format(CultureInfo.InvariantCulture, "Eksport: {0} ta list → {1} (plotter {2}, uslub {3}, usul {4}).",
-                total, folder, _settings.Plotter, _settings.UseMonochrome ? _settings.PlotStyleTable : "yo‘q", _settings.PlotMethod));
+            _log.Info(L.ExportStart(total, folder, _settings.Plotter, _settings.UseMonochrome ? _settings.PlotStyleTable : L.NoneWord, _settings.PlotMethod));
 
             try
             {
@@ -347,13 +358,13 @@ namespace AutoPDF.AutoCAD.Workflow
                         if (skip.Contains(sheet))
                         {
                             sheet.Status = SheetStatus.Skipped;
-                            summary.Results.Add(new SheetResult { Number = sheet.Number, OutputPath = planned[sheet], Outcome = SheetOutcome.Skipped, Error = "fayl mavjud" });
+                            summary.Results.Add(new SheetResult { Number = sheet.Number, OutputPath = planned[sheet], Outcome = SheetOutcome.Skipped, Error = L.FileExists });
                             continue;
                         }
 
                         if (Autodesk.AutoCAD.DatabaseServices.HostApplicationServices.Current.UserBreak())
                         {
-                            _log.Warn("Foydalanuvchi ESC bosdi — eksport to‘xtatildi.");
+                            _log.Warn(L.EscPressed);
                             CancelRemaining(summary, i, planned);
                             break;
                         }
@@ -365,14 +376,14 @@ namespace AutoPDF.AutoCAD.Workflow
 
                         if (result.UserCancelled)
                         {
-                            _log.Warn("Chop etish oynasida bekor qilindi — eksport to‘xtatildi.");
+                            _log.Warn(L.CancelledInProgress);
                             CancelRemaining(summary, i + 1, planned);
                             break;
                         }
 
                         if (!result.IsSuccess && _settings.ErrorPolicy == ErrorPolicy.Stop)
                         {
-                            _log.Warn("Xatolik siyosati: to‘xtatish — qolgan listlar chiqarilmadi.");
+                            _log.Warn(L.StopPolicyApplied);
                             CancelRemaining(summary, i + 1, planned);
                             break;
                         }
@@ -387,19 +398,19 @@ namespace AutoPDF.AutoCAD.Workflow
                             catch (Exception ex)
                             {
                                 // The preview is a convenience; it must never stop the export.
-                                _log.Warn("Ko‘rib chiqish oynasini ochib bo‘lmadi (" + AcadErrors.Describe(ex) + ") — qolgan listlar avtomatik yaratiladi.");
+                                _log.Warn(L.PreviewFailed(AcadErrors.Describe(ex)));
                                 choice = PreviewChoice.ConfirmAll;
                             }
                             if (choice == PreviewChoice.Cancel)
                             {
-                                _log.Info("Ko‘rib chiqishda bekor qilindi (" + Path.GetFileName(result.OutputPath) + " dan keyin).");
+                                _log.Info(L.PreviewCancelledAfter(Path.GetFileName(result.OutputPath)));
                                 CancelRemaining(summary, i + 1, planned);
                                 break;
                             }
                             if (choice == PreviewChoice.ConfirmAll)
                             {
                                 automatic = true;
-                                _log.Info("Tasdiqlandi — qolgan listlar avtomatik yaratiladi.");
+                                _log.Info(L.ConfirmedAll);
                             }
                         }
                     }
@@ -408,38 +419,37 @@ namespace AutoPDF.AutoCAD.Workflow
             catch (Exception ex)
             {
                 // Something outside a single sheet (e.g. the view could not be read) — report, never crash AutoCAD.
-                _log.Error("Eksport to‘xtadi", ex);
-                UzDialog.Show(AcadWindow, "Eksport to‘xtadi: " + AcadErrors.Describe(ex) + "\n\nJurnal: " + _log.LogFilePath, Uz.AppTitle, UzDialogKind.Error);
+                _log.Error(L.ExportStopped, ex);
+                MessageDialog.Show(AcadWindow, L.ExportStopped + ": " + AcadErrors.Describe(ex) + "\n\n" + L.Log + ": " + _log.LogFilePath, L.AppTitle, DialogKind.Error);
             }
 
             summary.Finished = DateTime.Now;
-            _log.Info(string.Format(CultureInfo.InvariantCulture, "Eksport yakuni: jami {0}, muvaffaqiyatli {1}, xato {2}, o‘tkazildi {3}, bekor {4} ({5:0.0} s).",
-                summary.Total, summary.Succeeded, summary.Failed, summary.Skipped, summary.Cancelled, (summary.Finished - summary.Started).TotalSeconds));
+            _log.Info(L.ExportTotals(summary.Total, summary.Succeeded, summary.Failed, summary.Skipped, summary.Cancelled, (summary.Finished - summary.Started).TotalSeconds));
 
             AcApp.ShowModalWindow(AcadWindow, new SummaryWindow(summary), false);
             if (_settings.OpenFolderWhenDone) Shell.OpenFolder(folder, out _);
 
-            return string.Format(CultureInfo.InvariantCulture, "Eksport: {0} ta PDF yaratildi, {1} ta xato. Papka: {2}", summary.Succeeded, summary.Failed, folder);
+            return L.ExportStatus(summary.Succeeded, summary.Failed, folder);
         }
 
         private PreviewChoice ShowPreview(SheetModel sheet, SheetResult result, int index, int total)
         {
             var checks = new List<string>
             {
-                "✓ Fayl yaratildi va bo‘sh emas (" + PreviewViewModel.FormatBytes(result.FileBytes) + ")",
+                L.CheckFileOk(PreviewViewModel.FormatBytes(result.FileBytes)),
                 result.PageSize.HasValue && result.PageSize.Value.ApproximatelyEquals(sheet.Paper.Paper, _settings.PageSizeToleranceMm)
-                    ? "✓ Sahifa o‘lchami to‘g‘ri: " + result.PageSize
-                    : "⚠ Sahifa o‘lchami: " + (result.PageSize?.ToString() ?? "noma’lum")
+                    ? L.CheckPageOk(result.PageSize)
+                    : L.CheckPageWarn(result.PageSize?.ToString() ?? L.Unknown)
             };
             checks.AddRange(result.Warnings.Select(w => "⚠ " + w));
 
             var vm = new PreviewViewModel(result.OutputPath)
             {
-                HeaderText = string.Format(CultureInfo.InvariantCulture, "List {0} / {1} — {2}", index + 1, total, Path.GetFileName(result.OutputPath)),
+                HeaderText = L.PreviewHeader(index + 1, total, Path.GetFileName(result.OutputPath)),
                 PaperText = sheet.Paper.DisplayText + (sheet.Paper.FormatName != null ? " (" + sheet.Paper.FormatName + ")" : string.Empty),
                 PageText = result.PageSize?.ToString(),
                 FileSizeText = PreviewViewModel.FormatBytes(result.FileBytes),
-                MethodText = result.Method == "API" ? "AutoCAD plot API" : "-PLOT buyrug‘i",
+                MethodText = result.Method == "API" ? L.MethodApi : L.MethodCommand,
                 PlanText = result.PlanDescription,
                 Checks = checks,
                 HasRemaining = index < total - 1
@@ -489,7 +499,7 @@ namespace AutoPDF.AutoCAD.Workflow
             error = null;
             if (string.IsNullOrWhiteSpace(folder))
             {
-                error = Uz.ChooseFolderFirst;
+                error = L.ChooseFolderFirst;
                 return false;
             }
             try

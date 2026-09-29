@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using AutoPDF.AutoCAD.Infrastructure;
 using AutoPDF.Core.Logging;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.PlottingServices;
@@ -51,7 +52,7 @@ namespace AutoPDF.AutoCAD.Plotting
             {
                 if (PlotFactory.ProcessPlotState != ProcessPlotState.NotPlotting)
                 {
-                    throw new PlotStepException(step, "AutoCAD boshqa chop etish jarayonini bajaryapti (fon rejimidagi plot tugashini kuting).");
+                    throw new PlotStepException(step, L.PlotBusy);
                 }
 
                 using (PlotSettings ps = _plotSettings.Create(req, Step))
@@ -69,8 +70,7 @@ namespace AutoPDF.AutoCAD.Plotting
                     if (validated != null)
                     {
                         result.ValidatedMedia = validated.CanonicalMediaName;
-                        _log.SheetDebug(sheet, step, string.Format(CultureInfo.InvariantCulture,
-                            "Tasdiqlangan: qurilma={0}, qog‘oz={1} ({2:0.##} x {3:0.##} mm), burish={4}, masshtab={5}:{6}, oyna(DCS)={7}, uslub={8}",
+                        _log.SheetDebug(sheet, step, string.Format(CultureInfo.InvariantCulture, L.ValidatedFormat,
                             validated.PlotConfigurationName, validated.CanonicalMediaName,
                             validated.PlotPaperSize.X, validated.PlotPaperSize.Y, validated.PlotRotation,
                             validated.CustomPrintScale.Numerator, validated.CustomPrintScale.Denominator,
@@ -101,10 +101,10 @@ namespace AutoPDF.AutoCAD.Plotting
                 try
                 {
                     progress.set_PlotMsgString(PlotMessageIndex.DialogTitle, title);
-                    progress.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, "Bekor qilish");
-                    progress.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, "Listni bekor qilish");
-                    progress.set_PlotMsgString(PlotMessageIndex.SheetSetProgressCaption, "Jarayon");
-                    progress.set_PlotMsgString(PlotMessageIndex.SheetProgressCaption, "List");
+                    progress.set_PlotMsgString(PlotMessageIndex.CancelJobButtonMessage, L.ProgressCancelJob);
+                    progress.set_PlotMsgString(PlotMessageIndex.CancelSheetButtonMessage, L.ProgressCancelSheet);
+                    progress.set_PlotMsgString(PlotMessageIndex.SheetSetProgressCaption, L.ProgressJob);
+                    progress.set_PlotMsgString(PlotMessageIndex.SheetProgressCaption, L.Sheet);
                     progress.LowerPlotProgressRange = 0;
                     progress.UpperPlotProgressRange = 100;
                     progress.PlotProgressPos = 0;
@@ -159,7 +159,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex) when (IsCancelled(progress))
                 {
-                    throw new PlotStepException(CancelledStep, "Chop etish oynasida bekor qilindi.", ex);
+                    throw new PlotStepException(CancelledStep, L.PlotCancelledByUser, ex);
                 }
                 finally
                 {

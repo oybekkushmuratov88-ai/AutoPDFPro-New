@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using AutoPDF.Core.Plotting;
+using AutoPDF.Core.Localization;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
@@ -15,7 +16,7 @@ namespace AutoPDF.AutoCAD.Pdf
             using (PdfDocument doc = PdfReader.Open(path, PdfDocumentOpenMode.Import))
             {
                 pageCount = doc.PageCount;
-                if (pageCount == 0) throw new InvalidDataException("PDF faylda sahifa yo‘q.");
+                if (pageCount == 0) throw new InvalidDataException(L.PdfNoPages);
                 PdfPage page = doc.Pages[0];
                 PdfRectangle box = page.MediaBox;
                 return new PdfPageBox(box.X1, box.Y1, box.X2, box.Y2, page.Rotate);

@@ -4,6 +4,7 @@ using AutoPDF.AutoCAD.Infrastructure;
 using AutoPDF.Core.Logging;
 using AutoPDF.Core.Paper;
 using AutoPDF.Core.Settings;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
@@ -35,7 +36,7 @@ namespace AutoPDF.AutoCAD.Plotting
             try { previous = LayoutManager.Current.CurrentLayout; } catch { /* ignore */ }
 
             Autodesk.AutoCAD.ApplicationServices.Core.Application.SetSystemVariable("TILEMODE", (short)1);
-            _log.Info("Model fazosiga o‘tildi (listlar model fazosida qidiriladi).");
+            _log.Info(L.SwitchedToModel);
             return previous;
         }
 
@@ -48,7 +49,7 @@ namespace AutoPDF.AutoCAD.Plotting
             }
             catch (Exception ex)
             {
-                _log.Debug("Oldingi layout tiklanmadi: " + AcadErrors.Describe(ex));
+                _log.Debug(L.LayoutRestoreFailed(AcadErrors.Describe(ex)));
             }
         }
 
@@ -86,32 +87,32 @@ namespace AutoPDF.AutoCAD.Plotting
 
             if (!media.DeviceExists(settings.Plotter))
             {
-                notes.Add("✖ “" + settings.Plotter + "” plotteri topilmadi.");
+                notes.Add(L.EnvPlotterMissing(settings.Plotter));
             }
             else
             {
                 try
                 {
                     int count = media.GetMedia(media.CanonicalDeviceName(settings.Plotter)).Count;
-                    notes.Add("✓ Plotter: " + settings.Plotter + " (" + count + " ta qog‘oz)");
+                    notes.Add(L.EnvPlotterOk(settings.Plotter, count));
                 }
                 catch (Exception ex)
                 {
-                    notes.Add("✖ Plotter qog‘ozlari o‘qilmadi: " + AcadErrors.Describe(ex));
+                    notes.Add(L.EnvPlotterMediaFailed(AcadErrors.Describe(ex)));
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(settings.CustomSizesPlotter) && media.DeviceExists(settings.CustomSizesPlotter))
             {
-                notes.Add("✓ Maxsus o‘lchamlar plotteri: " + settings.CustomSizesPlotter);
+                notes.Add(L.EnvCustomPlotter(settings.CustomSizesPlotter));
             }
 
             string style = plotSettings.ResolveStyleSheet(_doc.Database, settings, out string warning);
             if (warning != null) notes.Add("⚠ " + warning);
-            else if (style != null) notes.Add("✓ Plot uslubi: " + style);
+            else if (style != null) notes.Add(L.EnvStyle(style));
 
             int insunits = (int)_doc.Database.Insunits;
-            notes.Add("ℹ Chizma birliklari: " + DrawingUnits.Describe(insunits));
+            notes.Add(L.EnvUnits(DrawingUnits.Describe(insunits)));
             return notes;
         }
     }

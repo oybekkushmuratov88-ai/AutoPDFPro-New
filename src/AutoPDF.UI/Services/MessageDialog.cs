@@ -9,7 +9,7 @@ using AutoPDF.UI.Theme;
 
 namespace AutoPDF.UI.Services
 {
-    public enum UzDialogKind
+    public enum DialogKind
     {
         Info,
         Warning,
@@ -18,7 +18,7 @@ namespace AutoPDF.UI.Services
         YesNoCancel
     }
 
-    public enum UzDialogResult
+    public enum DialogAnswer
     {
         Ok,
         Yes,
@@ -27,16 +27,16 @@ namespace AutoPDF.UI.Services
     }
 
     /// <summary>
-    /// Message box with Uzbek button captions (the Windows MessageBox would show "Да/Нет" on a Russian
-    /// Windows). Can be owned by a WPF window or by a native handle such as AutoCAD's main window.
+    /// Message box whose buttons follow the plug-in language (the Windows MessageBox would always show the
+    /// Windows language). Can be owned by a WPF window or by a native handle such as AutoCAD's main window.
     /// </summary>
-    public sealed class UzDialog : Window
+    public sealed class MessageDialog : Window
     {
-        private UzDialogResult _result = UzDialogResult.Cancel;
+        private DialogAnswer _answer = DialogAnswer.Cancel;
 
-        private UzDialog(string message, string title, UzDialogKind kind)
+        private MessageDialog(string message, string title, DialogKind kind)
         {
-            Ui.ApplyWindowDefaults(this, string.IsNullOrEmpty(title) ? Uz.AppTitle : title, 520, 240);
+            Ui.ApplyWindowDefaults(this, string.IsNullOrEmpty(title) ? L.AppTitle : title, 540, 240);
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.NoResize;
             MinHeight = 180;
@@ -45,10 +45,10 @@ namespace AutoPDF.UI.Services
             Brush glyphBrush;
             switch (kind)
             {
-                case UzDialogKind.Error: glyph = "✖"; glyphBrush = Palette.Danger; break;
-                case UzDialogKind.Warning: glyph = "⚠"; glyphBrush = Palette.WarningText; break;
-                case UzDialogKind.YesNo:
-                case UzDialogKind.YesNoCancel: glyph = "?"; glyphBrush = Palette.Primary; break;
+                case DialogKind.Error: glyph = "✖"; glyphBrush = Palette.Danger; break;
+                case DialogKind.Warning: glyph = "⚠"; glyphBrush = Palette.WarningText; break;
+                case DialogKind.YesNo:
+                case DialogKind.YesNoCancel: glyph = "?"; glyphBrush = Palette.Primary; break;
                 default: glyph = "ℹ"; glyphBrush = Palette.Primary; break;
             }
 
@@ -79,17 +79,17 @@ namespace AutoPDF.UI.Services
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
             switch (kind)
             {
-                case UzDialogKind.YesNo:
-                    buttons.Children.Add(MakeButton(Uz.Yes, UzDialogResult.Yes, ButtonKind.Primary, isDefault: true));
-                    buttons.Children.Add(MakeButton(Uz.No, UzDialogResult.No, ButtonKind.Secondary, isCancel: true));
+                case DialogKind.YesNo:
+                    buttons.Children.Add(MakeButton(L.Yes, DialogAnswer.Yes, ButtonKind.Primary, isDefault: true));
+                    buttons.Children.Add(MakeButton(L.No, DialogAnswer.No, ButtonKind.Secondary, isCancel: true));
                     break;
-                case UzDialogKind.YesNoCancel:
-                    buttons.Children.Add(MakeButton(Uz.Yes, UzDialogResult.Yes, ButtonKind.Primary, isDefault: true));
-                    buttons.Children.Add(MakeButton(Uz.No, UzDialogResult.No, ButtonKind.Secondary));
-                    buttons.Children.Add(MakeButton(Uz.Cancel, UzDialogResult.Cancel, ButtonKind.Secondary, isCancel: true));
+                case DialogKind.YesNoCancel:
+                    buttons.Children.Add(MakeButton(L.Yes, DialogAnswer.Yes, ButtonKind.Primary, isDefault: true));
+                    buttons.Children.Add(MakeButton(L.No, DialogAnswer.No, ButtonKind.Secondary));
+                    buttons.Children.Add(MakeButton(L.Cancel, DialogAnswer.Cancel, ButtonKind.Secondary, isCancel: true));
                     break;
                 default:
-                    buttons.Children.Add(MakeButton(Uz.Ok, UzDialogResult.Ok, ButtonKind.Primary, isDefault: true, isCancel: true));
+                    buttons.Children.Add(MakeButton(L.Ok, DialogAnswer.Ok, ButtonKind.Primary, isDefault: true, isCancel: true));
                     break;
             }
 
@@ -101,11 +101,11 @@ namespace AutoPDF.UI.Services
             Content = root;
         }
 
-        private Button MakeButton(string text, UzDialogResult result, ButtonKind kind, bool isDefault = false, bool isCancel = false)
+        private Button MakeButton(string text, DialogAnswer answer, ButtonKind kind, bool isDefault = false, bool isCancel = false)
         {
             var b = Ui.Button(text, new RelayCommand(() =>
             {
-                _result = result;
+                _answer = answer;
                 Close();
             }), kind);
             b.IsDefault = isDefault;
@@ -113,18 +113,18 @@ namespace AutoPDF.UI.Services
             return b;
         }
 
-        public static UzDialogResult Show(Window owner, string message, string title = null, UzDialogKind kind = UzDialogKind.Info)
+        public static DialogAnswer Show(Window owner, string message, string title = null, DialogKind kind = DialogKind.Info)
         {
-            var dlg = new UzDialog(message, title, kind);
+            var dlg = new MessageDialog(message, title, kind);
             if (owner != null && owner.IsLoaded) dlg.Owner = owner;
             else dlg.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             dlg.ShowDialog();
-            return dlg._result;
+            return dlg._answer;
         }
 
-        public static UzDialogResult Show(IntPtr owner, string message, string title = null, UzDialogKind kind = UzDialogKind.Info)
+        public static DialogAnswer Show(IntPtr owner, string message, string title = null, DialogKind kind = DialogKind.Info)
         {
-            var dlg = new UzDialog(message, title, kind);
+            var dlg = new MessageDialog(message, title, kind);
             if (owner != IntPtr.Zero)
             {
                 new WindowInteropHelper(dlg).Owner = owner;
@@ -134,7 +134,7 @@ namespace AutoPDF.UI.Services
                 dlg.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
             dlg.ShowDialog();
-            return dlg._result;
+            return dlg._answer;
         }
     }
 }

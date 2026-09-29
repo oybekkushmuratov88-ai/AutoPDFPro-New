@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 using Windows.Data.Pdf;
 using Windows.Storage.Streams;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.UI.Services
 {
@@ -27,7 +28,7 @@ namespace AutoPDF.UI.Services
                 Task<byte[]> task = Task.Run(() => RenderPngAsync(pdf, maxPixels));
                 if (!task.Wait(Timeout))
                 {
-                    error = "PDF ko‘rinishini tayyorlash juda uzoq davom etdi.";
+                    error = L.PreviewTimeout;
                     return null;
                 }
 
@@ -68,7 +69,7 @@ namespace AutoPDF.UI.Services
 
                 input.Seek(0);
                 PdfDocument document = await PdfDocument.LoadFromStreamAsync(input);
-                if (document.PageCount == 0) throw new InvalidDataException("PDF faylda sahifa yo‘q.");
+                if (document.PageCount == 0) throw new InvalidDataException(L.PdfNoPages);
 
                 using (PdfPage page = document.GetPage(0))
                 {

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using AutoPDF.Core.Geometry;
+using AutoPDF.Core.Localization;
 using AutoPDF.Core.Models;
 using AutoPDF.Core.Paper;
 using AutoPDF.Core.Settings;
@@ -16,8 +18,9 @@ namespace AutoPDF.UiDemo
 {
     /// <summary>
     /// Shows the AutoPDF Pro windows with sample data, without AutoCAD:
-    ///   AutoPDF.UiDemo.exe                → main window (+ settings)
-    ///   AutoPDF.UiDemo.exe some.pdf       → preview window for that PDF, then the summary window
+    ///   AutoPDF.UiDemo.exe                  → main window (+ settings, about)
+    ///   AutoPDF.UiDemo.exe --lang ru        → same in Russian (uz / ru / en)
+    ///   AutoPDF.UiDemo.exe some.pdf         → preview window for that PDF, then the summary window
     /// </summary>
     public static class Program
     {
@@ -25,22 +28,35 @@ namespace AutoPDF.UiDemo
         public static void Main(string[] args)
         {
             var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var settings = new PluginSettings { OutputFolder = Path.Combine(Path.GetTempPath(), "AutoPDF-demo") };
 
-            if (args.Length > 0 && File.Exists(args[0]))
+            int langIndex = Array.FindIndex(args, a => string.Equals(a, "--lang", StringComparison.OrdinalIgnoreCase));
+            if (langIndex >= 0 && langIndex + 1 < args.Length)
             {
-                ShowPreview(args[0]);
+                switch (args[langIndex + 1].ToLowerInvariant())
+                {
+                    case "ru": settings.Language = UiLanguage.Russian; break;
+                    case "en": settings.Language = UiLanguage.English; break;
+                    default: settings.Language = UiLanguage.Uzbek; break;
+                }
+            }
+            L.Current = settings.Language;
+
+            string pdf = args.FirstOrDefault(a => a.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) && File.Exists(a));
+            if (pdf != null)
+            {
+                ShowPreview(pdf);
             }
             else
             {
-                ShowMain();
+                ShowMain(settings);
             }
 
             app.Shutdown();
         }
 
-        private static void ShowMain()
+        private static void ShowMain(PluginSettings settings)
         {
-            var settings = new PluginSettings { OutputFolder = Path.Combine(Path.GetTempPath(), "AutoPDF-demo") };
             var resolver = new PaperSizeResolver(new PaperResolverOptions { CustomFormats = PaperFormatCatalog.ParseCustom(settings.CustomFormats) });
             var sheets = new List<SheetModel>();
             double x = 0;
@@ -61,9 +77,10 @@ namespace AutoPDF.UiDemo
                 i++;
             }
 
+            string status = "Demo — AutoCAD siz / без AutoCAD / without AutoCAD.";
             while (true)
             {
-                var vm = new MainViewModel(settings, sheets, "v2.0.0 (demo)", "Demo rejimi — AutoCAD siz.");
+                var vm = new MainViewModel(settings, sheets, "v2.1.0 (demo)", status);
                 var window = new MainWindow(vm);
                 vm.OpenFolderRequested += f => Shell.OpenFolder(f, out _);
                 vm.OpenSettingsRequested += () =>
@@ -71,13 +88,23 @@ namespace AutoPDF.UiDemo
                     var svm = new SettingsViewModel(settings, new[] { "DWG To PDF.pc3", "AutoCAD PDF (High Quality Print).pc3" },
                         new[] { "monochrome.ctb", "acad.ctb", "Grayscale.ctb" }, Path.GetTempPath());
                     new SettingsWindow(svm) { Owner = window }.ShowDialog();
+                    if (svm.LanguageChanged)
+                    {
+                        L.Current = settings.Language;
+                        vm.RequestReload();
+                    }
                 };
                 window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 window.ShowDialog();
 
-                if (vm.Action == MainAction.Close) return;
-                UzDialog.Show(IntPtr.Zero, "Tanlangan amal: " + vm.Action + "\n(AutoCAD ichida bu yerda chizma bilan ishlanadi.)");
                 sheets = new List<SheetModel>(vm.SheetModels);
+                if (vm.Action == MainAction.Close) return;
+                if (vm.Action == MainAction.Reload)
+                {
+                    status = L.SettingsSaved;
+                    continue;
+                }
+                MessageDialog.Show(IntPtr.Zero, vm.Action + " → AutoCAD");
             }
         }
 
@@ -85,13 +112,13 @@ namespace AutoPDF.UiDemo
         {
             var vm = new PreviewViewModel(pdf)
             {
-                HeaderText = "List 1 / 3 — " + Path.GetFileName(pdf),
+                HeaderText = L.PreviewHeader(1, 3, Path.GetFileName(pdf)),
                 PaperText = "210 x 297 mm (A4)",
                 PageText = "210 x 297 mm",
                 FileSizeText = PreviewViewModel.FormatBytes(new FileInfo(pdf).Length),
-                MethodText = "AutoCAD plot API",
+                MethodText = L.MethodApi,
                 PlanText = "DWG To PDF.pc3 · ISO full bleed A4 (210.00 x 297.00 MM) · 0°",
-                Checks = new List<string> { "✓ Fayl yaratildi va bo‘sh emas", "✓ Sahifa o‘lchami to‘g‘ri: 210 x 297 mm" },
+                Checks = new List<string> { L.CheckFileOk("120 KB"), L.CheckPageOk("210 x 297 mm") },
                 HasRemaining = true
             };
             vm.LoadImage();
@@ -101,7 +128,7 @@ namespace AutoPDF.UiDemo
             summary.Results.Add(new SheetResult { Number = 1, OutputPath = pdf, Outcome = SheetOutcome.Success });
             summary.Results.Add(new SheetResult { Number = 2, OutputPath = "02.pdf", Outcome = SheetOutcome.Failed, FailedStep = "plot:set-media", Error = "eInvalidInput — demo" });
             var warn = new SheetResult { Number = 3, OutputPath = "03.pdf", Outcome = SheetOutcome.SuccessWithWarning };
-            warn.Warnings.Add("Plot API xatosi — -PLOT bilan yaratildi (demo).");
+            warn.Warnings.Add(L.ApiFailedWarning("plot:engine-begin-document", "demo"));
             summary.Results.Add(warn);
             new SummaryWindow(summary) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
         }

@@ -71,7 +71,8 @@ Setting *Plot usuli → Faqat -PLOT buyrug‘i* forces the fallback for testing;
 5. Attach instead of launch: *Debug → Attach to Process* → `acad.exe`, code type **Managed (.NET 4.x)**.
 
 The UI can be developed without AutoCAD: set **AutoPDF.UiDemo** as start-up project
-(argument = path to any PDF opens the preview and summary windows).
+(argument = path to any PDF opens the preview and summary windows; `--lang ru` / `--lang en` / `--lang uz`
+shows the windows in that language).
 
 ## 5. Unit tests
 

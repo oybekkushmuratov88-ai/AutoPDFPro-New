@@ -4,6 +4,7 @@ using System.IO;
 using AutoPDF.AutoCAD.Infrastructure;
 using AutoPDF.Core.Logging;
 using AutoPDF.Core.Plotting;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -57,7 +58,7 @@ namespace AutoPDF.AutoCAD.Plotting
             };
 
             IReadOnlyList<object> tokens = PlotCommandBuilder.Build(input);
-            _log.SheetInfo(sheet, "cmd-plot", "-PLOT javoblari: " + PlotCommandBuilder.Describe(tokens));
+            _log.SheetInfo(sheet, "cmd-plot", L.CmdAnswers(PlotCommandBuilder.Describe(tokens)));
 
             var args = new object[tokens.Count];
             for (int i = 0; i < tokens.Count; i++)
@@ -78,15 +79,13 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    throw new PlotStepException("cmd-plot:command", "-PLOT buyrug‘i xato bilan tugadi: " + AcadErrors.Describe(ex) +
-                        ". Buyruq qatori tarixini (F2) tekshiring; yuborilgan javoblar jurnalda.", ex);
+                    throw new PlotStepException("cmd-plot:command", L.CmdFailed(AcadErrors.Describe(ex)), ex);
                 }
             }
 
             if (!File.Exists(outputPath))
             {
-                throw new PlotStepException("cmd-plot:no-file",
-                    "-PLOT buyrug‘i PDF yaratmadi. Buyruq qatori tarixida (F2) qaysi so‘rov boshqacha ekanini ko‘ring; yuborilgan javoblar jurnalda.");
+                throw new PlotStepException("cmd-plot:no-file", L.CmdNoFile);
             }
         }
 
@@ -105,7 +104,7 @@ namespace AutoPDF.AutoCAD.Plotting
             }
             catch (Exception ex)
             {
-                _log.Debug("PlotToFileCapability aniqlanmadi (" + AcadErrors.Describe(ex) + ") — PDF qurilma deb olinadi.");
+                _log.Debug(L.CmdCapabilityUnknown(AcadErrors.Describe(ex)));
             }
             finally
             {

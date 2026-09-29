@@ -61,7 +61,7 @@ namespace AutoPDF.UI.Preview
         public ICommand ConfirmAllCommand { get; }
         public ICommand OpenExternalCommand { get; }
 
-        public string ConfirmText => HasRemaining ? Uz.PreviewConfirm : Uz.PreviewConfirm + " (oxirgi list)";
+        public string ConfirmText => HasRemaining ? L.PreviewConfirm : L.PreviewConfirmLast;
 
         public void LoadImage(int maxPixels = 1600)
         {
@@ -76,7 +76,7 @@ namespace AutoPDF.UI.Preview
                 Image = null;
                 error = ex.Message;
             }
-            ImageMessage = Image == null ? Uz.PreviewUnavailable + (string.IsNullOrEmpty(error) ? string.Empty : "\n(" + error + ")") : null;
+            ImageMessage = Image == null ? L.PreviewUnavailable + (string.IsNullOrEmpty(error) ? string.Empty : "\n(" + error + ")") : null;
             Raise(nameof(Image));
             Raise(nameof(HasImage));
             Raise(nameof(HasNoImage));
@@ -108,7 +108,7 @@ namespace AutoPDF.UI.Preview
         public PreviewWindow(PreviewViewModel vm)
         {
             DataContext = vm ?? throw new ArgumentNullException(nameof(vm));
-            Ui.ApplyWindowDefaults(this, Uz.PreviewTitle, 1100, 760);
+            Ui.ApplyWindowDefaults(this, L.PreviewTitle, 1100, 760);
             MinWidth = 760;
             MinHeight = 520;
             ResizeMode = ResizeMode.CanResizeWithGrip;
@@ -116,7 +116,7 @@ namespace AutoPDF.UI.Preview
 
             var root = new DockPanel();
 
-            var header = Ui.Header(Uz.PreviewTitle, vm.HeaderText);
+            var header = Ui.Header(L.PreviewTitle, vm.HeaderText);
             DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
@@ -151,7 +151,7 @@ namespace AutoPDF.UI.Preview
             noImageText.TextAlignment = TextAlignment.Center;
             noImageText.MaxWidth = 420;
             noImage.Children.Add(noImageText);
-            var openBtn = Ui.Button(Uz.PreviewOpenExternal, vm.OpenExternalCommand);
+            var openBtn = Ui.Button(L.PreviewOpenExternal, vm.OpenExternalCommand);
             openBtn.Margin = new Thickness(0, 12, 0, 0);
             openBtn.HorizontalAlignment = HorizontalAlignment.Center;
             noImage.Children.Add(openBtn);
@@ -169,14 +169,14 @@ namespace AutoPDF.UI.Preview
 
             // Information
             var info = new StackPanel();
-            AddInfo(info, "Fayl", Path.GetFileName(vm.PdfPath));
-            AddInfo(info, "Kutilgan qog‘oz", vm.PaperText);
-            AddInfo(info, "PDF sahifasi", vm.PageText);
-            AddInfo(info, "Fayl hajmi", vm.FileSizeText);
-            AddInfo(info, "Usul", vm.MethodText);
-            AddInfo(info, "Plot", vm.PlanText);
+            AddInfo(info, L.InfoFile, Path.GetFileName(vm.PdfPath));
+            AddInfo(info, L.InfoExpectedPaper, vm.PaperText);
+            AddInfo(info, L.InfoPdfPage, vm.PageText);
+            AddInfo(info, L.InfoFileSize, vm.FileSizeText);
+            AddInfo(info, L.InfoMethod, vm.MethodText);
+            AddInfo(info, L.InfoPlot, vm.PlanText);
 
-            var checksTitle = Ui.SectionTitle("Tekshiruv");
+            var checksTitle = Ui.SectionTitle(L.InfoChecks);
             checksTitle.Margin = new Thickness(0, 12, 0, 6);
             info.Children.Add(checksTitle);
             foreach (string c in vm.Checks)
@@ -193,12 +193,12 @@ namespace AutoPDF.UI.Preview
                 });
             }
 
-            var external = Ui.Button(Uz.PreviewOpenExternal, vm.OpenExternalCommand);
+            var external = Ui.Button(L.PreviewOpenExternal, vm.OpenExternalCommand);
             external.Margin = new Thickness(0, 14, 0, 0);
             external.HorizontalAlignment = HorizontalAlignment.Left;
             info.Children.Add(external);
 
-            var infoCard = Ui.Card("Ma’lumot", new ScrollViewer { Content = info, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, new Thickness(0));
+            var infoCard = Ui.Card(L.InfoTitle, new ScrollViewer { Content = info, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, new Thickness(0));
             Grid.SetColumn(infoCard, 1);
             body.Children.Add(infoCard);
 
@@ -219,16 +219,16 @@ namespace AutoPDF.UI.Preview
         {
             var panel = new DockPanel();
 
-            var cancel = Ui.Button("✕  " + Uz.PreviewCancel, vm.CancelCommand, ButtonKind.Danger, Uz.PreviewCancelHint);
+            var cancel = Ui.Button("✕  " + L.PreviewCancel, vm.CancelCommand, ButtonKind.Danger, L.PreviewCancelHint);
             cancel.Margin = new Thickness(0);
             cancel.IsCancel = true;
             DockPanel.SetDock(cancel, Dock.Left);
             panel.Children.Add(cancel);
 
             var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var confirm = Ui.Button("✓  " + vm.ConfirmText, vm.ConfirmCommand, ButtonKind.Secondary, Uz.PreviewConfirmHint);
+            var confirm = Ui.Button("✓  " + vm.ConfirmText, vm.ConfirmCommand, ButtonKind.Secondary, L.PreviewConfirmHint);
             right.Children.Add(confirm);
-            var all = Ui.Button("✓✓  " + Uz.PreviewConfirmAll, vm.ConfirmAllCommand, ButtonKind.Primary, Uz.PreviewConfirmAllHint);
+            var all = Ui.Button("✓✓  " + L.PreviewConfirmAll, vm.ConfirmAllCommand, ButtonKind.Primary, L.PreviewConfirmAllHint);
             all.IsDefault = vm.HasRemaining;
             if (!vm.HasRemaining)
             {

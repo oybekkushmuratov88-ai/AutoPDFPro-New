@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Naming
 {
@@ -58,7 +59,7 @@ namespace AutoPDF.Core.Naming
                 string candidate = Path.Combine(dir, stem + "_" + i.ToString(CultureInfo.InvariantCulture) + ext);
                 if (!exists(candidate)) return candidate;
             }
-            throw new IOException("Bo‘sh fayl nomi topilmadi: " + path);
+            throw new IOException(L.NoFreeFileName(path));
         }
     }
 }

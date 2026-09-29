@@ -59,8 +59,8 @@ namespace AutoPDF.AutoCAD.Detection
 
         public DetectionOutcome Detect(DetectionMode mode)
         {
-            _log.Info("Aniqlash boshlandi: usul=" + mode + ", INSUNITS=" + DrawingUnits.Describe((int)_doc.Database.Insunits) +
-                      ", masshtab=" + (_settings.FixedScale > 0 ? "1:" + _settings.FixedScale.ToString(CultureInfo.InvariantCulture) : "avto"));
+            _log.Info(L.DetectStart(mode, DrawingUnits.Describe((int)_doc.Database.Insunits),
+                _settings.FixedScale > 0 ? "1:" + _settings.FixedScale.ToString(CultureInfo.InvariantCulture) : L.ScaleAutoShort));
             switch (mode)
             {
                 case DetectionMode.Manual: return DetectManual();
@@ -75,16 +75,15 @@ namespace AutoPDF.AutoCAD.Detection
 
         private DetectionOutcome DetectManual()
         {
-            var opts = new PromptSelectionOptions { MessageForAdding = Uz.PromptSelectFrames, AllowDuplicates = false };
+            var opts = new PromptSelectionOptions { MessageForAdding = L.PromptSelectFrames, AllowDuplicates = false };
             PromptSelectionResult sel = _doc.Editor.GetSelection(opts, FrameFilter);
             if (sel.Status != PromptStatus.OK || sel.Value == null)
             {
-                return new DetectionOutcome { Cancelled = true, Message = "Tanlash bekor qilindi." };
+                return new DetectionOutcome { Cancelled = true, Message = L.SelectionCancelled };
             }
 
             List<FrameCandidate> frames = ReadFrames(sel.Value.GetObjectIds(), out int rejected);
-            _log.Info(string.Format(CultureInfo.InvariantCulture, "Qo‘lda tanlash: {0} obyekt, {1} ramka, {2} ta ramka emas.",
-                sel.Value.Count, frames.Count, rejected));
+            _log.Info(L.ManualSelectionLog(sel.Value.Count, frames.Count, rejected));
             return Finish(frames, keepInvalid: true, rejected);
         }
 
@@ -95,7 +94,7 @@ namespace AutoPDF.AutoCAD.Detection
             var matcher = new WildcardMatcher(_settings.BlockNames);
             if (matcher.IsEmpty)
             {
-                return new DetectionOutcome { Message = "Blok nomlarini kiriting (masalan: Ramka_A3, Format*)." };
+                return new DetectionOutcome { Message = L.EnterBlockNames };
             }
 
             var frames = new List<FrameCandidate>();
@@ -117,22 +116,21 @@ namespace AutoPDF.AutoCAD.Detection
                     else
                     {
                         rejected++;
-                        _log.Debug("Blok " + br.Handle + " '" + name + "' o‘tkazildi: " + why);
+                        _log.Debug(L.BlockSkipped(br.Handle.ToString(), name, why));
                     }
                 }
                 tr.Commit();
             }
 
-            _log.Info("Model fazosidagi bloklar: " + string.Join(", ", namesSeen.OrderByDescending(kv => kv.Value).Take(25)
-                .Select(kv => kv.Key + "×" + kv.Value)));
-            _log.Info("Blok nomi bo‘yicha (" + _settings.BlockNames + "): " + frames.Count + " ta blok mos keldi.");
+            _log.Info(L.ModelSpaceBlocks(string.Join(", ", namesSeen.OrderByDescending(kv => kv.Value).Take(25)
+                .Select(kv => kv.Key + "×" + kv.Value))));
+            _log.Info(L.BlockNameMatches(_settings.BlockNames, frames.Count));
 
             if (frames.Count == 0)
             {
                 return new DetectionOutcome
                 {
-                    Message = "“" + _settings.BlockNames + "” nomli blok topilmadi. Chizmadagi bloklar: " +
-                              string.Join(", ", namesSeen.Keys.Take(10))
+                    Message = L.BlockNotFound(_settings.BlockNames, string.Join(", ", namesSeen.Keys.Take(10)))
                 };
             }
             return Finish(frames, keepInvalid: true, rejected);
@@ -142,8 +140,8 @@ namespace AutoPDF.AutoCAD.Detection
 
         private DetectionOutcome DetectBySample(bool withRange)
         {
-            var peo = new PromptEntityOptions(Uz.PromptSelectSample);
-            peo.SetRejectMessage(Uz.PromptSampleReject);
+            var peo = new PromptEntityOptions(L.PromptSelectSample);
+            peo.SetRejectMessage(L.PromptSampleReject);
             peo.AddAllowedClass(typeof(Polyline), false);
             peo.AddAllowedClass(typeof(Polyline2d), false);
             peo.AddAllowedClass(typeof(BlockReference), false);
@@ -151,7 +149,7 @@ namespace AutoPDF.AutoCAD.Detection
             PromptEntityResult per = _doc.Editor.GetEntity(peo);
             if (per.Status != PromptStatus.OK)
             {
-                return new DetectionOutcome { Cancelled = true, Message = "Namuna tanlanmadi." };
+                return new DetectionOutcome { Cancelled = true, Message = L.SampleNotPicked };
             }
 
             FrameCandidate sample;
@@ -161,25 +159,24 @@ namespace AutoPDF.AutoCAD.Detection
                 if (!FrameReader.TryRead(ent, tr, out sample, out string why))
                 {
                     tr.Commit();
-                    return new DetectionOutcome { Message = "Namuna ramka emas: " + why + "." };
+                    return new DetectionOutcome { Message = L.SampleNotFrame(why) };
                 }
                 tr.Commit();
             }
 
             string sampleText = sample.Kind == SheetSourceKind.Block
-                ? "blok “" + sample.Name + "”"
-                : "to‘rtburchak, qatlam “" + sample.Layer + "”";
-            _log.Info("Namuna: " + sampleText + ", " + Format(sample.Bounds.Width) + " x " + Format(sample.Bounds.Height) +
-                      (_settings.SampleMatchSize ? " (faqat shu o‘lcham)" : string.Empty));
+                ? L.SampleBlock(sample.Name)
+                : L.SampleRectangle(sample.Layer);
+            _log.Info(L.SampleLog(sampleText, Format(sample.Bounds.Width) + " x " + Format(sample.Bounds.Height), _settings.SampleMatchSize));
 
             IEnumerable<ObjectId> pool;
             if (withRange)
             {
-                var opts = new PromptSelectionOptions { MessageForAdding = Uz.PromptSelectRange, AllowDuplicates = false };
+                var opts = new PromptSelectionOptions { MessageForAdding = L.PromptSelectRange, AllowDuplicates = false };
                 PromptSelectionResult sel = _doc.Editor.GetSelection(opts, FrameFilter);
                 if (sel.Status != PromptStatus.OK || sel.Value == null)
                 {
-                    return new DetectionOutcome { Cancelled = true, Message = "Hudud tanlanmadi." };
+                    return new DetectionOutcome { Cancelled = true, Message = L.RangeNotSelected };
                 }
                 var ids = new List<ObjectId>(sel.Value.GetObjectIds());
                 if (!ids.Contains(sample.Id)) ids.Add(sample.Id);
@@ -206,7 +203,7 @@ namespace AutoPDF.AutoCAD.Detection
             List<FrameCandidate> frames = ReadFrames(pool, out int rejected, prefilter)
                 .Where(f => IsSimilar(sample, f))
                 .ToList();
-            _log.Info("Namunaga o‘xshash ramkalar: " + frames.Count + ".");
+            _log.Info(L.SimilarFrames(frames.Count));
             return Finish(frames, keepInvalid: false, rejected);
         }
 
@@ -268,13 +265,13 @@ namespace AutoPDF.AutoCAD.Detection
                         else
                         {
                             rejected++;
-                            _log.Debug("Obyekt " + ent.Handle + " (" + ent.GetType().Name + ") o‘tkazildi: " + why);
+                            _log.Debug(L.ObjectSkipped(ent.Handle.ToString(), ent.GetType().Name, why));
                         }
                     }
                     catch (Exception ex)
                     {
                         rejected++;
-                        _log.Debug("Obyekt " + id + " o‘qilmadi: " + AcadErrors.Describe(ex));
+                        _log.Debug(L.ObjectUnreadable(id.ToString(), AcadErrors.Describe(ex)));
                     }
                 }
                 tr.Commit();
@@ -305,7 +302,7 @@ namespace AutoPDF.AutoCAD.Detection
                 if (!sheet.Paper.IsValid)
                 {
                     invalid++;
-                    _log.Debug("Ramka " + f.Handle + " " + Format(f.Bounds.Width) + " x " + Format(f.Bounds.Height) + ": " + sheet.Paper.Problem);
+                    _log.Debug(L.FrameProblem(f.Handle, Format(f.Bounds.Width) + " x " + Format(f.Bounds.Height), sheet.Paper.Problem));
                     if (!keepInvalid) continue;
                     sheet.Status = SheetStatus.Error;
                     sheet.StatusDetail = sheet.Paper.Problem;
@@ -315,27 +312,23 @@ namespace AutoPDF.AutoCAD.Detection
 
             List<SheetModel> sheets = SheetCandidateFilter.SelectSheets(candidates, out CandidateFilterStats stats);
 
-            var parts = new List<string>
-            {
-                sheets.Count.ToString(CultureInfo.InvariantCulture) + " ta list topildi"
-            };
+            var parts = new List<string> { L.FoundCount(sheets.Count) };
             var formats = sheets.Where(s => s.Paper != null && s.Paper.IsValid)
                 .GroupBy(s => s.Paper.FormatName ?? s.Paper.Paper.Key)
                 .Select(g => g.Key + "×" + g.Count())
                 .ToList();
             if (formats.Count > 0) parts[0] += " (" + string.Join(", ", formats) + ")";
-            if (stats.Nested > 0) parts.Add(stats.Nested + " ta ichki ramka chiqarildi");
-            if (stats.Duplicates > 0) parts.Add(stats.Duplicates + " ta takror ramka chiqarildi");
-            if (stats.Containers > 0) parts.Add(stats.Containers + " ta umumiy chegara chiqarildi");
-            if (invalid > 0) parts.Add(invalid + " ta juda kichik/katta to‘rtburchak " + (keepInvalid ? "xato deb belgilandi" : "e’tiborsiz qoldirildi"));
+            if (stats.Nested > 0) parts.Add(L.RemovedNested(stats.Nested));
+            if (stats.Duplicates > 0) parts.Add(L.RemovedDuplicates(stats.Duplicates));
+            if (stats.Containers > 0) parts.Add(L.RemovedContainers(stats.Containers));
+            if (invalid > 0) parts.Add(keepInvalid ? L.InvalidMarked(invalid) : L.InvalidIgnored(invalid));
 
             string message = string.Join("; ", parts) + ".";
-            _log.Info(message + (rejected > 0 ? " (" + rejected + " ta obyekt ramka emas)" : string.Empty));
+            _log.Info(message + (rejected > 0 ? L.NotFramesSuffix(rejected) : string.Empty));
 
             foreach (SheetModel s in sheets)
             {
-                _log.Debug("Ramka " + s.Handle + " " + s.BlockName + " " + s.Bounds + " → " + s.Paper.DisplayText +
-                           (s.Paper.FormatName != null ? " [" + s.Paper.FormatName + "]" : " [nostandart]"));
+                _log.Debug(L.FrameDebug(s.Handle, s.BlockName, s.Bounds, s.Paper.DisplayText, s.Paper.FormatName ?? L.TipNonStandard));
             }
 
             return new DetectionOutcome { Sheets = sheets, Message = message };

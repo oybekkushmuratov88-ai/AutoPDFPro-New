@@ -9,6 +9,7 @@ using AutoPDF.Core.Logging;
 using AutoPDF.Core.Paper;
 using AutoPDF.Core.Plotting;
 using AutoPDF.Core.Settings;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.DatabaseServices;
 
 namespace AutoPDF.AutoCAD.Plotting
@@ -66,7 +67,7 @@ namespace AutoPDF.AutoCAD.Plotting
             }
             catch (Exception ex)
             {
-                _log.Warn("Plotterlar ro‘yxatini olib bo‘lmadi: " + AcadErrors.Describe(ex));
+                _log.Warn(L.DeviceListFailed(AcadErrors.Describe(ex)));
             }
             return _devices;
         }
@@ -93,7 +94,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    throw new PlotStepException("media:open-device", "“" + device + "” plotterini ochib bo‘lmadi: " + AcadErrors.Describe(ex), ex);
+                    throw new PlotStepException("media:open-device", L.DeviceOpenFailed(device, AcadErrors.Describe(ex)), ex);
                 }
 
                 StringCollection names = psv.GetCanonicalMediaNameList(ps);
@@ -115,9 +116,7 @@ namespace AutoPDF.AutoCAD.Plotting
                     }
                 }
 
-                _log.Info(string.Format(CultureInfo.InvariantCulture,
-                    "Plotter “{0}”: {1} ta qog‘oz ({2} tasi chetsiz/full-bleed){3}.",
-                    device, list.Count, list.Count(m => m.IsFullBleed()), failed > 0 ? ", " + failed + " tasi o‘qilmadi" : string.Empty));
+                _log.Info(L.MediaCatalog(device, list.Count, list.Count(m => m.IsFullBleed()), failed));
             }
 
             CatalogCache[device] = list;
@@ -139,7 +138,7 @@ namespace AutoPDF.AutoCAD.Plotting
             string main = CanonicalDeviceName(settings.Plotter);
             if (!DeviceExists(main))
             {
-                problem = "“" + settings.Plotter + "” plotteri topilmadi (Sozlamalar → Plotter).";
+                problem = L.PlotterNotFoundSettings(settings.Plotter);
                 return null;
             }
 
@@ -167,7 +166,7 @@ namespace AutoPDF.AutoCAD.Plotting
                 }
                 catch (Exception ex)
                 {
-                    _log.Warn("Maxsus o‘lchamlar plotteri o‘qilmadi: " + AcadErrors.Describe(ex));
+                    _log.Warn(L.CustomPlotterReadFailed(AcadErrors.Describe(ex)));
                 }
             }
 
@@ -178,9 +177,7 @@ namespace AutoPDF.AutoCAD.Plotting
 
             if (plan == null)
             {
-                problem = options.AllowCrop
-                    ? "“" + main + "” da " + paper + " ni sig‘diradigan chetsiz (full bleed) qog‘oz yo‘q."
-                    : "“" + main + "” da " + paper + " o‘lchamli qog‘oz yo‘q (kesish o‘chirilgan — Sozlamalarda yoqing yoki README bo‘yicha maxsus o‘lcham qo‘shing).";
+                problem = options.AllowCrop ? L.NoMediaForCrop(main, paper) : L.NoMediaExact(main, paper);
                 return null;
             }
 
@@ -211,15 +208,15 @@ namespace AutoPDF.AutoCAD.Plotting
             IReadOnlyList<MediaInfo> media = GetMedia(device);
             foreach (MediaInfo m in media.Where(x => x.IsFullBleed()).OrderBy(x => x.Area))
             {
-                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  [chetsiz] {0,8:0.##} x {1,-8:0.##}  {2}  |  {3}",
-                    m.WidthMm, m.HeightMm, m.CanonicalName, m.LocaleName));
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  [{0}] {1,8:0.##} x {2,-8:0.##}  {3}  |  {4}",
+                    L.DiagFullBleed, m.WidthMm, m.HeightMm, m.CanonicalName, m.LocaleName));
             }
-            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "  (+ {0} ta chetli qog‘oz — ishlatilmaydi)", media.Count(x => !x.IsFullBleed())));
-            sb.AppendLine("Listlar uchun tanlov:");
+            sb.AppendLine("  " + L.DiagWithMargins(media.Count(x => !x.IsFullBleed())));
+            sb.AppendLine(L.DiagChoices);
             foreach (PaperSize size in testSizes)
             {
                 MediaPlan plan = Plan(size, settings, out string problem);
-                sb.AppendLine("  " + size + " → " + (plan != null ? plan.Describe() + (plan.Fit == MediaFit.Exact ? " (aniq)" : string.Empty) : "YO‘Q: " + problem));
+                sb.AppendLine("  " + size + " → " + (plan != null ? plan.Describe() + (plan.Fit == MediaFit.Exact ? " " + L.DiagExact : string.Empty) : L.DiagNone(problem)));
             }
             return sb.ToString();
         }

@@ -8,6 +8,7 @@ using AutoPDF.Core.Geometry;
 using AutoPDF.Core.Logging;
 using AutoPDF.Core.Plotting;
 using AutoPDF.Core.Settings;
+using AutoPDF.Core.Localization;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -130,7 +131,7 @@ namespace AutoPDF.AutoCAD.Plotting
             if (!wanted.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
             {
                 string adapted = Path.ChangeExtension(wanted, ext);
-                _log.Info("Chizma " + (colorDependent ? "rangga bog‘liq (CTB)" : "nomli (STB)") + " plot uslubida — “" + wanted + "” o‘rniga “" + adapted + "”.");
+                _log.Info(L.StyleAdapted(colorDependent, wanted, adapted));
                 wanted = adapted;
             }
 
@@ -141,14 +142,14 @@ namespace AutoPDF.AutoCAD.Plotting
             }
             catch (Exception ex)
             {
-                warning = "Plot uslublari ro‘yxatini olib bo‘lmadi: " + AcadErrors.Describe(ex);
+                warning = L.StyleListFailed(AcadErrors.Describe(ex));
                 return null;
             }
 
             string match = available.Cast<string>().FirstOrDefault(s => string.Equals(s, wanted, StringComparison.OrdinalIgnoreCase));
             if (match == null)
             {
-                warning = "“" + wanted + "” plot uslubi jadvali topilmadi — uslubsiz chiqariladi.";
+                warning = L.StyleNotFound(wanted);
                 return null;
             }
             return match;

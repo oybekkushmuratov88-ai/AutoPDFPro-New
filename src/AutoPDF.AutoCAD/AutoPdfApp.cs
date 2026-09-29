@@ -4,6 +4,8 @@ using System.Reflection;
 using AutoPDF.AutoCAD.Infrastructure;
 using AutoPDF.Core.Logging;
 using Autodesk.AutoCAD.Runtime;
+using AutoPDF.Core.Localization;
+using AutoPDF.Core.Settings;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 [assembly: ExtensionApplication(typeof(AutoPDF.AutoCAD.AutoPdfApp))]
@@ -29,12 +31,14 @@ namespace AutoPDF.AutoCAD
             AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
             try
             {
-                Log.Info("AutoPDF Pro " + Version + " yuklandi: " + PluginDirectory +
-                         " | AutoCAD " + SafeSysVar("ACADVER") + ", til " + SafeSysVar("LOCALE") +
+                // The start-up message already uses the language chosen in the settings.
+                L.Current = new SettingsService(SettingsService.DefaultFilePath).Load().Language;
+                Log.Info(L.LoadedLog(Version, PluginDirectory) +
+                         " | AutoCAD " + SafeSysVar("ACADVER") + ", LOCALE " + SafeSysVar("LOCALE") +
                          " | .NET " + Environment.Version);
 
                 var doc = AcCoreApp.DocumentManager.MdiActiveDocument;
-                doc?.Editor.WriteMessage("\nAutoPDF Pro v" + Version + " yuklandi. Buyruq: AUTOPDF  (diagnostika: AUTOPDFMEDIA, jurnal: AUTOPDFLOG)\n");
+                doc?.Editor.WriteMessage(L.LoadedMessage(Version));
             }
             catch
             {

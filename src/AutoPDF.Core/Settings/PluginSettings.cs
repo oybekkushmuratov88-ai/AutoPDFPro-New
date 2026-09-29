@@ -1,6 +1,7 @@
 using System;
 using System.Xml.Serialization;
 using AutoPDF.Core.Models;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Settings
 {
@@ -38,6 +39,10 @@ namespace AutoPDF.Core.Settings
         public const string DefaultCustomSizesPlotter = "AutoPDFPro PDF.pc3";
         public const string DefaultStyleTable = "monochrome.ctb";
         public const string DefaultCustomFormats = "630x297; 891x420; 1260x594";
+
+        // ---- Interface ---------------------------------------------------------------------
+        /// <summary>Language of every window, message and command-line prompt.</summary>
+        public UiLanguage Language { get; set; } = UiLanguage.Uzbek;
 
         // ---- Main window -------------------------------------------------------------------
         public string OutputFolder { get; set; } = string.Empty;
@@ -115,6 +120,7 @@ namespace AutoPDF.Core.Settings
             PageSizeToleranceMm = Clamp(PageSizeToleranceMm, 0.1, 20, 1.5);
             if (CustomFormats == null) CustomFormats = string.Empty;
             if (string.IsNullOrWhiteSpace(FileNamePattern)) FileNamePattern = "{N}";
+            if (!Enum.IsDefined(typeof(UiLanguage), Language)) Language = UiLanguage.Uzbek;
             if (!Enum.IsDefined(typeof(DetectionMode), DetectionMode)) DetectionMode = DetectionMode.Sample;
             if (!Enum.IsDefined(typeof(SortDirection), SortDirection)) SortDirection = SortDirection.LeftToRight;
             if (!Enum.IsDefined(typeof(PlotMethod), PlotMethod)) PlotMethod = PlotMethod.Auto;

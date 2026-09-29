@@ -4,6 +4,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 using AutoPDF.Core.Logging;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Settings
 {
@@ -31,7 +32,7 @@ namespace AutoPDF.Core.Settings
         {
             if (!File.Exists(FilePath))
             {
-                _log?.Info("Sozlamalar fayli yo‘q — standart sozlamalar ishlatiladi: " + FilePath);
+                _log?.Info(L.SettingsMissing(FilePath));
                 return new PluginSettings().Normalize();
             }
 
@@ -47,7 +48,7 @@ namespace AutoPDF.Core.Settings
             {
                 string backup = FilePath + ".broken-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
                 try { File.Copy(FilePath, backup, true); } catch { /* best effort */ }
-                _log?.Warn("Sozlamalar fayli o‘qilmadi (" + ex.Message + "). Standart sozlamalar olindi, eski fayl: " + backup);
+                _log?.Warn(L.SettingsBroken(ex.Message, backup));
                 return new PluginSettings().Normalize();
             }
         }
@@ -74,7 +75,7 @@ namespace AutoPDF.Core.Settings
             }
             catch (Exception ex)
             {
-                _log?.Warn("Sozlamalarni saqlab bo‘lmadi: " + ex.Message);
+                _log?.Warn(L.SettingsSaveFailed(ex.Message));
             }
         }
     }

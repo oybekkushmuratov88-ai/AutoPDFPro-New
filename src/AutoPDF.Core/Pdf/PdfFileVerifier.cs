@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Pdf
 {
@@ -24,7 +25,7 @@ namespace AutoPDF.Core.Pdf
             var check = new PdfFileCheck();
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                check.Problem = "PDF fayl yaratilmadi: " + path;
+                check.Problem = L.PdfNotCreated(path);
                 return check;
             }
 
@@ -36,7 +37,7 @@ namespace AutoPDF.Core.Pdf
                     check.Length = stream.Length;
                     if (check.Length == 0)
                     {
-                        check.Problem = "PDF fayl bo‘sh (0 bayt).";
+                        check.Problem = L.PdfEmpty;
                         return check;
                     }
 
@@ -54,12 +55,12 @@ namespace AutoPDF.Core.Pdf
             }
             catch (Exception ex)
             {
-                check.Problem = "PDF faylni o‘qib bo‘lmadi: " + ex.Message;
+                check.Problem = L.PdfUnreadable(ex.Message);
                 return check;
             }
 
-            if (!check.HasHeader) check.Problem = "Fayl PDF emas (%PDF- sarlavhasi yo‘q).";
-            else if (!check.HasEndMarker) check.Problem = "PDF fayl to‘liq yozilmagan (%%EOF yo‘q).";
+            if (!check.HasHeader) check.Problem = L.PdfNoHeader;
+            else if (!check.HasEndMarker) check.Problem = L.PdfIncomplete;
             return check;
         }
 

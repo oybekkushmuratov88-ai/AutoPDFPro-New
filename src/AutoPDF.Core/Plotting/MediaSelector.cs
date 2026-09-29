@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using AutoPDF.Core.Paper;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.Core.Plotting
 {
@@ -89,7 +90,7 @@ namespace AutoPDF.Core.Plotting
                 DeviceName,
                 Media?.LocaleName,
                 Rotate90 ? "90°" : "0°",
-                Fit == MediaFit.Crop ? " · kesish → " + TargetPage : string.Empty);
+                Fit == MediaFit.Crop ? " · " + L.PlanCrop + " → " + TargetPage : string.Empty);
     }
 
     public sealed class MediaSelectionOptions

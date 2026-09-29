@@ -1,17 +1,18 @@
 ﻿; AutoPDF Pro — Inno Setup script (https://jrsoftware.org/isinfo.php)
 ; Build the solution first (build\build.ps1), then compile this file with ISCC.exe:
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\AutoPDFPro.iss
-; Output: dist\AutoPDFPro-2.0.0-Setup.exe
+; Output: dist\AutoPDFPro-2.1.0-Setup.exe
 
 #define AppName "AutoPDF Pro"
-#define AppVersion "2.0.0"
+#define AppVersion "2.1.0"
 #define BundleSource "..\artifacts\AutoPDFPro.bundle"
 
 [Setup]
 AppId={{F3C1626A-8269-442B-A3AC-1C878B083C04}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=AutoPDF Pro
+AppPublisher=Kushmuratov Oybek
+AppCopyright=© 2026 Kushmuratov Oybek
 DefaultDirName={commonpf64}\Autodesk\ApplicationPlugins\AutoPDFPro.bundle
 DisableDirPage=yes
 DisableProgramGroupPage=yes

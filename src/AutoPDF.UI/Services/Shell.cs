@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using AutoPDF.Core.Localization;
 
 namespace AutoPDF.UI.Services
 {
@@ -14,7 +15,7 @@ namespace AutoPDF.UI.Services
             {
                 if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
                 {
-                    error = "Papka topilmadi: " + folder;
+                    error = L.FolderNotFound(folder);
                     return false;
                 }
                 Process.Start(new ProcessStartInfo("explorer.exe", "\"" + folder + "\"") { UseShellExecute = true });
@@ -50,7 +51,7 @@ namespace AutoPDF.UI.Services
             {
                 if (!File.Exists(file))
                 {
-                    error = "Fayl topilmadi: " + file;
+                    error = L.FileNotFound(file);
                     return false;
                 }
                 Process.Start(new ProcessStartInfo(file) { UseShellExecute = true });

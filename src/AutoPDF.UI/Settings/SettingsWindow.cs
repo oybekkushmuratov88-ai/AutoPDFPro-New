@@ -19,19 +19,23 @@ namespace AutoPDF.UI.Settings
         private readonly PluginSettings _target;
         private readonly PluginSettings _edit;
         private readonly string _logFolder;
+        private readonly UiLanguage _originalLanguage;
 
         public SettingsViewModel(PluginSettings target, IEnumerable<string> devices, IEnumerable<string> styleTables, string logFolder)
         {
             _target = target ?? throw new ArgumentNullException(nameof(target));
             _edit = target.Clone();
             _logFolder = logFolder;
+            _originalLanguage = target.Language;
+
+            Languages = L.All.Select(l => new OptionItem<UiLanguage>(l, L.NativeName(l))).ToList();
 
             Devices = (devices ?? Enumerable.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (!Devices.Contains(PluginSettings.DefaultPlotter, StringComparer.OrdinalIgnoreCase)) Devices.Insert(0, PluginSettings.DefaultPlotter);
             StyleTables = (styleTables ?? Enumerable.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (!StyleTables.Contains(PluginSettings.DefaultStyleTable, StringComparer.OrdinalIgnoreCase)) StyleTables.Insert(0, PluginSettings.DefaultStyleTable);
 
-            ScaleOptions = new List<OptionItem<double>> { new OptionItem<double>(0, Uz.ScaleAuto) };
+            ScaleOptions = new List<OptionItem<double>> { new OptionItem<double>(0, L.ScaleAuto) };
             foreach (double s in new double[] { 1, 2, 2.5, 4, 5, 10, 20, 25, 50, 75, 100, 200, 250, 500, 1000 })
                 ScaleOptions.Add(new OptionItem<double>(s, "1:" + s.ToString("0.##", CultureInfo.InvariantCulture)));
             if (_edit.FixedScale > 0 && ScaleOptions.All(o => Math.Abs(o.Value - _edit.FixedScale) > 1e-9))
@@ -39,21 +43,21 @@ namespace AutoPDF.UI.Settings
 
             PlotMethods = new List<OptionItem<PlotMethod>>
             {
-                new OptionItem<PlotMethod>(PlotMethod.Auto, Uz.PlotMethodAuto),
-                new OptionItem<PlotMethod>(PlotMethod.ApiOnly, Uz.PlotMethodApi),
-                new OptionItem<PlotMethod>(PlotMethod.CommandLineOnly, Uz.PlotMethodCmd),
+                new OptionItem<PlotMethod>(PlotMethod.Auto, L.PlotMethodAuto),
+                new OptionItem<PlotMethod>(PlotMethod.ApiOnly, L.PlotMethodApi),
+                new OptionItem<PlotMethod>(PlotMethod.CommandLineOnly, L.PlotMethodCmd),
             };
             OverwriteOptions = new List<OptionItem<OverwritePolicy>>
             {
-                new OptionItem<OverwritePolicy>(OverwritePolicy.Ask, Uz.OverwriteAsk),
-                new OptionItem<OverwritePolicy>(OverwritePolicy.Overwrite, Uz.OverwriteReplace),
-                new OptionItem<OverwritePolicy>(OverwritePolicy.Rename, Uz.OverwriteRename),
-                new OptionItem<OverwritePolicy>(OverwritePolicy.Skip, Uz.OverwriteSkip),
+                new OptionItem<OverwritePolicy>(OverwritePolicy.Ask, L.OverwriteAsk),
+                new OptionItem<OverwritePolicy>(OverwritePolicy.Overwrite, L.OverwriteReplace),
+                new OptionItem<OverwritePolicy>(OverwritePolicy.Rename, L.OverwriteRename),
+                new OptionItem<OverwritePolicy>(OverwritePolicy.Skip, L.OverwriteSkip),
             };
             ErrorOptions = new List<OptionItem<ErrorPolicy>>
             {
-                new OptionItem<ErrorPolicy>(ErrorPolicy.Continue, Uz.OnErrorContinue),
-                new OptionItem<ErrorPolicy>(ErrorPolicy.Stop, Uz.OnErrorStop),
+                new OptionItem<ErrorPolicy>(ErrorPolicy.Continue, L.OnErrorContinue),
+                new OptionItem<ErrorPolicy>(ErrorPolicy.Stop, L.OnErrorStop),
             };
 
             SnapToleranceText = Format(_edit.SnapToleranceMm);
@@ -69,6 +73,10 @@ namespace AutoPDF.UI.Settings
         public Action<string> ShowError { get; set; }
         public bool Saved { get; private set; }
 
+        /// <summary>True when the settings were saved with a different interface language.</summary>
+        public bool LanguageChanged => Saved && _target.Language != _originalLanguage;
+
+        public List<OptionItem<UiLanguage>> Languages { get; }
         public List<string> Devices { get; }
         public List<string> StyleTables { get; }
         public List<OptionItem<double>> ScaleOptions { get; }
@@ -80,6 +88,7 @@ namespace AutoPDF.UI.Settings
         public ICommand CancelCommand { get; }
         public ICommand OpenLogFolderCommand { get; }
 
+        public UiLanguage Language { get => _edit.Language; set { _edit.Language = value; Raise(nameof(Language)); } }
         public string Plotter { get => _edit.Plotter; set { _edit.Plotter = value; Raise(nameof(Plotter)); } }
         public string CustomSizesPlotter { get => _edit.CustomSizesPlotter; set { _edit.CustomSizesPlotter = value; Raise(nameof(CustomSizesPlotter)); } }
         public string PlotStyleTable { get => _edit.PlotStyleTable; set { _edit.PlotStyleTable = value; Raise(nameof(PlotStyleTable)); } }
@@ -109,7 +118,7 @@ namespace AutoPDF.UI.Settings
         {
             if (!TryParse(SnapToleranceText, out double snap) || !TryParse(MinSheetSizeText, out double minSize) || !TryParse(PageToleranceText, out double pageTol))
             {
-                ShowError?.Invoke("Son qiymatlari noto‘g‘ri kiritilgan (masalan: 0.5).");
+                ShowError?.Invoke(L.InvalidNumbers);
                 return;
             }
 
@@ -126,6 +135,7 @@ namespace AutoPDF.UI.Settings
         /// <summary>Copies the settings-window fields (main-window fields stay as they are).</summary>
         private static void CopyInto(PluginSettings from, PluginSettings to)
         {
+            to.Language = from.Language;
             to.Plotter = from.Plotter;
             to.CustomSizesPlotter = from.CustomSizesPlotter;
             to.PlotStyleTable = from.PlotStyleTable;
@@ -162,27 +172,27 @@ namespace AutoPDF.UI.Settings
         public SettingsWindow(SettingsViewModel vm)
         {
             DataContext = vm ?? throw new ArgumentNullException(nameof(vm));
-            Ui.ApplyWindowDefaults(this, Uz.SettingsTitle, 780, 760);
-            MinWidth = 640;
+            Ui.ApplyWindowDefaults(this, L.SettingsTitle, 800, 780);
+            MinWidth = 660;
             MinHeight = 480;
             vm.CloseRequested += Close;
-            vm.ShowError = msg => UzDialog.Show(this, msg, Uz.SettingsTitle, UzDialogKind.Warning);
+            vm.ShowError = msg => MessageDialog.Show(this, msg, L.SettingsTitle, DialogKind.Warning);
 
             var root = new DockPanel();
-            var header = Ui.Header(Uz.SettingsTitle, "Plot, aniqlash va eksport parametrlari");
+            var header = Ui.Header(L.SettingsTitle, L.SettingsSubtitle);
             DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
             var buttons = new DockPanel();
-            var log = Ui.Button(Uz.OpenLogFolder, vm.OpenLogFolderCommand);
+            var log = Ui.Button(L.OpenLogFolder, vm.OpenLogFolderCommand);
             log.Margin = new Thickness(0);
             DockPanel.SetDock(log, Dock.Left);
             buttons.Children.Add(log);
             var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var cancel = Ui.Button(Uz.Cancel, vm.CancelCommand);
+            var cancel = Ui.Button(L.Cancel, vm.CancelCommand);
             cancel.IsCancel = true;
             right.Children.Add(cancel);
-            var save = Ui.Button(Uz.Save, vm.SaveCommand, ButtonKind.Primary);
+            var save = Ui.Button(L.Save, vm.SaveCommand, ButtonKind.Primary);
             save.IsDefault = true;
             right.Children.Add(save);
             buttons.Children.Add(right);
@@ -192,53 +202,60 @@ namespace AutoPDF.UI.Settings
 
             var stack = new StackPanel { Margin = new Thickness(12) };
 
+            // Language (first, with a trilingual title so every user finds it)
+            var language = Ui.FormGrid();
+            var languageCombo = Ui.OptionCombo(nameof(SettingsViewModel.Languages), nameof(SettingsViewModel.Language));
+            languageCombo.HorizontalAlignment = HorizontalAlignment.Left;
+            languageCombo.MinWidth = 220;
+            Ui.AddRow(language, L.LanguageLabel, languageCombo, L.LanguageHint);
+            stack.Children.Add(Ui.Card(L.GroupLanguage, language));
+
             // Plot
             var plot = Ui.FormGrid();
-            Ui.AddRow(plot, Uz.Plotter, Ui.EditableCombo(nameof(SettingsViewModel.Devices), nameof(SettingsViewModel.Plotter)));
-            Ui.AddRow(plot, Uz.CustomSizesPlotter, Ui.EditableCombo(nameof(SettingsViewModel.Devices), nameof(SettingsViewModel.CustomSizesPlotter)),
-                "DWG To PDF.pc3 nusxasi, unga 630x297 kabi maxsus o‘lchamlar qo‘shilgan bo‘lsa — o‘sha o‘lchamlar aniq chiqariladi (README ga qarang).");
-            Ui.AddRow(plot, Uz.StyleTable, Ui.EditableCombo(nameof(SettingsViewModel.StyleTables), nameof(SettingsViewModel.PlotStyleTable)));
+            Ui.AddRow(plot, L.Plotter, Ui.EditableCombo(nameof(SettingsViewModel.Devices), nameof(SettingsViewModel.Plotter)));
+            Ui.AddRow(plot, L.CustomSizesPlotter, Ui.EditableCombo(nameof(SettingsViewModel.Devices), nameof(SettingsViewModel.CustomSizesPlotter)),
+                L.CustomSizesPlotterHint);
+            Ui.AddRow(plot, L.StyleTable, Ui.EditableCombo(nameof(SettingsViewModel.StyleTables), nameof(SettingsViewModel.PlotStyleTable)));
             var plotChecks = new StackPanel();
-            plotChecks.Children.Add(Ui.Check(Uz.UseMonochrome, nameof(SettingsViewModel.UseMonochrome)));
-            plotChecks.Children.Add(Ui.Check(Uz.PlotWithStyles, nameof(SettingsViewModel.PlotWithPlotStyles)));
-            plotChecks.Children.Add(Ui.Check(Uz.PlotLineweights, nameof(SettingsViewModel.PlotLineweights)));
-            plotChecks.Children.Add(Ui.Check(Uz.ScaleLineweights, nameof(SettingsViewModel.ScaleLineweights)));
-            plotChecks.Children.Add(Ui.Check(Uz.CenterPlot, nameof(SettingsViewModel.CenterPlot)));
-            plotChecks.Children.Add(Ui.Check(Uz.AllowCrop, nameof(SettingsViewModel.AllowCropForNonStandard)));
+            plotChecks.Children.Add(Ui.Check(L.UseMonochrome, nameof(SettingsViewModel.UseMonochrome)));
+            plotChecks.Children.Add(Ui.Check(L.PlotWithStyles, nameof(SettingsViewModel.PlotWithPlotStyles)));
+            plotChecks.Children.Add(Ui.Check(L.PlotLineweights, nameof(SettingsViewModel.PlotLineweights)));
+            plotChecks.Children.Add(Ui.Check(L.ScaleLineweights, nameof(SettingsViewModel.ScaleLineweights)));
+            plotChecks.Children.Add(Ui.Check(L.CenterPlot, nameof(SettingsViewModel.CenterPlot)));
+            plotChecks.Children.Add(Ui.Check(L.AllowCrop, nameof(SettingsViewModel.AllowCropForNonStandard)));
             Ui.AddRow(plot, string.Empty, plotChecks);
-            Ui.AddRow(plot, Uz.Scale, Ui.OptionCombo(nameof(SettingsViewModel.ScaleOptions), nameof(SettingsViewModel.FixedScale)),
-                "Avtomatik: ramka o‘lchamidan aniqlanadi (1:1, 1:100 …).");
-            Ui.AddRow(plot, Uz.PlotMethod, Ui.OptionCombo(nameof(SettingsViewModel.PlotMethods), nameof(SettingsViewModel.PlotMethod)));
-            stack.Children.Add(Ui.Card(Uz.GroupPlot, plot));
+            Ui.AddRow(plot, L.Scale, Ui.OptionCombo(nameof(SettingsViewModel.ScaleOptions), nameof(SettingsViewModel.FixedScale)), L.ScaleHint);
+            Ui.AddRow(plot, L.PlotMethod, Ui.OptionCombo(nameof(SettingsViewModel.PlotMethods), nameof(SettingsViewModel.PlotMethod)));
+            stack.Children.Add(Ui.Card(L.GroupPlot, plot));
 
             // Detection
             var detection = Ui.FormGrid();
-            Ui.AddRow(detection, Uz.CustomFormats, Ui.Input(nameof(SettingsViewModel.CustomFormats)), Uz.CustomFormatsHint);
-            Ui.AddRow(detection, Uz.SnapTolerance, Narrow(Ui.Input(nameof(SettingsViewModel.SnapToleranceText))));
-            Ui.AddRow(detection, Uz.MinSheetSize, Narrow(Ui.Input(nameof(SettingsViewModel.MinSheetSizeText))));
+            Ui.AddRow(detection, L.CustomFormats, Ui.Input(nameof(SettingsViewModel.CustomFormats)), L.CustomFormatsHint);
+            Ui.AddRow(detection, L.SnapTolerance, Narrow(Ui.Input(nameof(SettingsViewModel.SnapToleranceText))));
+            Ui.AddRow(detection, L.MinSheetSize, Narrow(Ui.Input(nameof(SettingsViewModel.MinSheetSizeText))));
             var detChecks = new StackPanel();
-            detChecks.Children.Add(Ui.Check(Uz.SampleMatchLayer, nameof(SettingsViewModel.SampleMatchLayer)));
-            detChecks.Children.Add(Ui.Check(Uz.SampleMatchSize, nameof(SettingsViewModel.SampleMatchSize)));
+            detChecks.Children.Add(Ui.Check(L.SampleMatchLayer, nameof(SettingsViewModel.SampleMatchLayer)));
+            detChecks.Children.Add(Ui.Check(L.SampleMatchSize, nameof(SettingsViewModel.SampleMatchSize)));
             Ui.AddRow(detection, string.Empty, detChecks);
-            stack.Children.Add(Ui.Card(Uz.GroupDetection, detection));
+            stack.Children.Add(Ui.Card(L.GroupDetection, detection));
 
             // Export
             var export = Ui.FormGrid();
-            Ui.AddRow(export, Uz.FileNamePattern, Ui.Input(nameof(SettingsViewModel.FileNamePattern)), Uz.FileNamePatternHint);
-            Ui.AddRow(export, Uz.Overwrite, Ui.OptionCombo(nameof(SettingsViewModel.OverwriteOptions), nameof(SettingsViewModel.OverwritePolicy)));
-            Ui.AddRow(export, Uz.OnError, Ui.OptionCombo(nameof(SettingsViewModel.ErrorOptions), nameof(SettingsViewModel.ErrorPolicy)));
-            Ui.AddRow(export, Uz.PageTolerance, Narrow(Ui.Input(nameof(SettingsViewModel.PageToleranceText))));
+            Ui.AddRow(export, L.FileNamePattern, Ui.Input(nameof(SettingsViewModel.FileNamePattern)), L.FileNamePatternHint);
+            Ui.AddRow(export, L.Overwrite, Ui.OptionCombo(nameof(SettingsViewModel.OverwriteOptions), nameof(SettingsViewModel.OverwritePolicy)));
+            Ui.AddRow(export, L.OnError, Ui.OptionCombo(nameof(SettingsViewModel.ErrorOptions), nameof(SettingsViewModel.ErrorPolicy)));
+            Ui.AddRow(export, L.PageTolerance, Narrow(Ui.Input(nameof(SettingsViewModel.PageToleranceText))));
             var exportChecks = new StackPanel();
-            exportChecks.Children.Add(Ui.Check(Uz.PreviewEachSheet, nameof(SettingsViewModel.PreviewEachSheet)));
-            exportChecks.Children.Add(Ui.Check(Uz.OpenFolderWhenDone, nameof(SettingsViewModel.OpenFolderWhenDone)));
+            exportChecks.Children.Add(Ui.Check(L.PreviewEachSheet, nameof(SettingsViewModel.PreviewEachSheet)));
+            exportChecks.Children.Add(Ui.Check(L.OpenFolderWhenDone, nameof(SettingsViewModel.OpenFolderWhenDone)));
             Ui.AddRow(export, string.Empty, exportChecks);
-            stack.Children.Add(Ui.Card(Uz.GroupExport, export));
+            stack.Children.Add(Ui.Card(L.GroupExport, export));
 
             // Diagnostics
             var diagnostics = new StackPanel();
-            diagnostics.Children.Add(Ui.Check(Uz.VerboseLog, nameof(SettingsViewModel.VerboseLog)));
-            diagnostics.Children.Add(Ui.Hint("Diagnostika buyrug‘i: AUTOPDFMEDIA — plotter qog‘ozlari va listlar uchun tanlangan qog‘ozni ko‘rsatadi."));
-            stack.Children.Add(Ui.Card(Uz.GroupDiagnostics, diagnostics));
+            diagnostics.Children.Add(Ui.Check(L.VerboseLog, nameof(SettingsViewModel.VerboseLog)));
+            diagnostics.Children.Add(Ui.Hint(L.DiagnosticsHint));
+            stack.Children.Add(Ui.Card(L.GroupDiagnostics, diagnostics));
 
             root.Children.Add(new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
             Content = root;

@@ -1,113 +1,39 @@
-/**
- * AutoPDF Pro - registration back end (Google Apps Script). Plain ASCII, paste as one whole file.
- *
- * 1) Paste this entire file into the Apps Script editor (replace the default myFunction).
- * 2) Set NOTIFY_EMAIL and ADMIN_KEY just below.
- * 3) Deploy as a Web app: Execute as = Me, Who has access = Anyone.
- * See installer/registration/README.md for the step-by-step.
- */
+// AutoPDF Pro - registration back end (Google Apps Script). Paste this whole file.
+// Change the two values below, then Deploy as a Web app (Execute as: Me, Access: Anyone).
 
-// ---- Settings (change these two) --------------------------------------------------------------
-var NOTIFY_EMAIL = "Oybekkushmuratov88@gmail.com"; // where the "new user" e-mail is sent
-var ADMIN_KEY    = "CHANGE-ME";                     // a secret word you invent (asked by AUTOPDFADMIN)
-var SHEET_NAME   = "Users";
+var NOTIFY_EMAIL = "Oybekkushmuratov88@gmail.com";
+var ADMIN_KEY = "CHANGE-ME";
 
-var HEADER = ["Date", "Name", "Email", "Phone", "Computer", "Windows user", "Machine id", "OS", "Version", "Language"];
+function sheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName("Users") || ss.insertSheet("Users");
+}
 
-// ---- Registration (POST from the plug-in) -----------------------------------------------------
+function out_(s) {
+  return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.TEXT);
+}
+
 function doPost(e) {
   try {
-    var p = (e && e.parameter) ? e.parameter : {};
-    if (p.action && p.action !== "register") return text("ERROR: unknown action");
-
-    var email = trim(p.email);
-    if (!email) return text("ERROR: no email");
-
-    var r = {
-      date: new Date(),
-      name: trim(p.name),
-      email: email,
-      phone: trim(p.phone),
-      computer: trim(p.computer),
-      user: trim(p.user),
-      machineId: trim(p.machineId),
-      os: trim(p.os),
-      version: trim(p.version),
-      lang: trim(p.lang)
-    };
-
-    sheet().appendRow([r.date, r.name, r.email, r.phone, r.computer, r.user, r.machineId, r.os, r.version, r.lang]);
-    sendMail(r);
-    return text("OK");
+    var p = e.parameter;
+    sheet_().appendRow([new Date(), p.name, p.email, p.phone, p.computer, p.user, p.version]);
+    var body = p.name + " (" + p.email + ") - " + p.computer + " kompyuteridan kirdi.";
+    MailApp.sendEmail(NOTIFY_EMAIL, "AutoPDF Pro: yangi foydalanuvchi", body);
+    return out_("OK");
   } catch (err) {
-    return text("ERROR: " + err);
+    return out_("ERROR: " + err);
   }
 }
 
-// ---- User list (GET ?action=list&key=... from AUTOPDFADMIN) ------------------------------------
 function doGet(e) {
-  var p = (e && e.parameter) ? e.parameter : {};
-  if (p.action === "list") {
-    if (trim(p.key) !== ADMIN_KEY) return text("FORBIDDEN");
-    return text(listUsers());
+  if (e.parameter.action != "list") return out_("OK");
+  if (e.parameter.key != ADMIN_KEY) return out_("FORBIDDEN");
+  var rows = sheet_().getDataRange().getValues();
+  var result = "OK";
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var d = (r[0] instanceof Date) ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") : r[0];
+    result += "\n" + [d, r[1], r[2], r[3], r[4], r[5], r[6]].join("\t");
   }
-  return text("OK"); // health check
-}
-
-// ---- Helpers ----------------------------------------------------------------------------------
-function sheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(HEADER);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function sendMail(r) {
-  var when = Utilities.formatDate(r.date, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
-  var subject = "AutoPDF Pro - yangi foydalanuvchi: " + (r.name || r.email);
-  var body =
-    "AutoPDF Pro: yangi foydalanuvchi royxatdan otdi.\n\n" +
-    "Ism: " + r.name + "\n" +
-    "E-pochta: " + r.email + "\n" +
-    "Telefon: " + (r.phone || "-") + "\n" +
-    "Kompyuter: " + r.computer + "\n" +
-    "Windows: " + r.user + "\n" +
-    "Versiya: " + r.version + "\n" +
-    "Til: " + r.lang + "\n" +
-    "Sana: " + when + "\n\n" +
-    (r.name || r.email) + " (" + r.email + ") - " + r.computer + " kompyuteridan kirdi.";
-  MailApp.sendEmail(NOTIFY_EMAIL, subject, body);
-}
-
-function listUsers() {
-  var sh = sheet();
-  var last = sh.getLastRow();
-  var out = ["OK"];
-  if (last > 1) {
-    var values = sh.getRange(2, 1, last - 1, HEADER.length).getValues();
-    for (var i = 0; i < values.length; i++) {
-      var v = values[i];
-      var date = (v[0] instanceof Date)
-        ? Utilities.formatDate(v[0], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm")
-        : String(v[0]);
-      out.push([date, cell(v[1]), cell(v[2]), cell(v[3]), cell(v[4]), cell(v[5]), cell(v[8])].join("\t"));
-    }
-  }
-  return out.join("\n");
-}
-
-function cell(v) {
-  return String(v == null ? "" : v).replace(/[\t\r\n]+/g, " ").trim();
-}
-
-function trim(v) {
-  return (v == null ? "" : String(v)).trim();
-}
-
-function text(s) {
-  return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.TEXT);
+  return out_(result);
 }

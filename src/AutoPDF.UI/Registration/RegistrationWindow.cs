@@ -57,10 +57,8 @@ namespace AutoPDF.UI.Registration
             Ui.AddRow(form, L.RegPhone, Field(Ui.Input("Phone")));
             body.Children.Add(form);
 
-            body.Children.Add(WhatIsSentCard());
-
             CheckBox consent = Ui.Check(L.RegConsent, "Consent");
-            consent.Margin = new Thickness(0, 12, 0, 2);
+            consent.Margin = new Thickness(0, 14, 0, 2);
             consent.SetBinding(IsEnabledProperty, Bind("NotBusy"));
             body.Children.Add(consent);
 
@@ -95,40 +93,6 @@ namespace AutoPDF.UI.Registration
             body.Children.Add(busy);
 
             return body;
-        }
-
-        private Border WhatIsSentCard()
-        {
-            var content = new StackPanel();
-            content.Children.Add(new TextBlock
-            {
-                Text = L.RegWhatIsSent,
-                Foreground = Palette.Muted,
-                FontSize = 11.5,
-                Margin = new Thickness(0, 0, 0, 6)
-            });
-            content.Children.Add(FactLine(L.RegFieldComputer, _vm.Computer));
-            content.Children.Add(FactLine(L.RegFieldUser, _vm.WindowsUser));
-            content.Children.Add(FactLine(L.RegFieldVersion, _vm.Version));
-
-            return new Border
-            {
-                Background = Palette.NeutralBack,
-                BorderBrush = Palette.CardBorder,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(12, 10, 12, 10),
-                Margin = new Thickness(0, 14, 0, 0),
-                Child = content
-            };
-        }
-
-        private static UIElement FactLine(string label, string value)
-        {
-            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            line.Children.Add(new TextBlock { Text = label + ": ", Foreground = Palette.Muted, FontSize = 12 });
-            line.Children.Add(new TextBlock { Text = string.IsNullOrEmpty(value) ? "—" : value, Foreground = Palette.Text, FontSize = 12, FontWeight = FontWeights.SemiBold });
-            return line;
         }
 
         private UIElement BuildFooter()

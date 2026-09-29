@@ -49,11 +49,12 @@ namespace AutoPDF.Core.Tests
         }
 
         [Fact]
-        public void Config_PlaceholderIsNotConfigured()
+        public void Config_HttpsDetectionAndAdmin()
         {
-            Assert.False(RegistrationConfig.IsConfigured);
-            Assert.False(RegistrationConfig.IsHttpsUrl("http://example.com/x"));
+            Assert.False(RegistrationConfig.IsHttpsUrl("__REGISTRATION_ENDPOINT__")); // the placeholder
+            Assert.False(RegistrationConfig.IsHttpsUrl("http://example.com/x"));       // must be https
             Assert.True(RegistrationConfig.IsHttpsUrl("https://script.google.com/macros/s/AAA/exec"));
+            Assert.Equal(RegistrationConfig.IsHttpsUrl(RegistrationConfig.Endpoint), RegistrationConfig.IsConfigured);
             Assert.True(RegistrationConfig.IsAdmin("Oybekkushmuratov88@gmail.com"));
             Assert.False(RegistrationConfig.IsAdmin("someone@else.com"));
         }

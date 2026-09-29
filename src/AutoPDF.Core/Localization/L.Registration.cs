@@ -12,27 +12,18 @@ namespace AutoPDF.Core.Localization
             "Register once to use the program");
 
         public static string RegIntro => T(
-            "AutoPDF Pro’dan foydalanish uchun ismingiz va e-pochtangizni kiriting. Ma’lumot dastur muallifiga bir marta yuboriladi.",
-            "Чтобы пользоваться AutoPDF Pro, введите имя и e-mail. Данные один раз отправляются автору программы.",
-            "To use AutoPDF Pro, enter your name and e-mail. The details are sent once to the program's author.");
+            "AutoPDF Pro’dan foydalanish uchun ismingiz va e-pochtangizni kiriting.",
+            "Чтобы пользоваться AutoPDF Pro, введите имя и e-mail.",
+            "To use AutoPDF Pro, enter your name and e-mail.");
 
         public static string RegName => T("Ism-familiya", "Имя и фамилия", "Full name");
         public static string RegEmail => T("E-pochta (Gmail)", "Почта (Gmail)", "E-mail (Gmail)");
         public static string RegPhone => T("Telefon (ixtiyoriy)", "Телефон (необязательно)", "Phone (optional)");
 
-        public static string RegWhatIsSent => T(
-            "Quyidagi ma’lumot muallifga yuboriladi:",
-            "Автору будет отправлено следующее:",
-            "The following is sent to the author:");
-
-        public static string RegFieldComputer => T("Kompyuter", "Компьютер", "Computer");
-        public static string RegFieldUser => T("Windows foydalanuvchisi", "Пользователь Windows", "Windows user");
-        public static string RegFieldVersion => T("Versiya", "Версия", "Version");
-
         public static string RegConsent => T(
-            "Roziman: yuqoridagi ma’lumotlar dastur muallifi (Kushmuratov Oybek)ga yuborilsin.",
-            "Согласен(на): отправить указанные данные автору программы (Kushmuratov Oybek).",
-            "I agree to send the above details to the program's author (Kushmuratov Oybek).");
+            "Ma’lumotlarni qayta ishlash uchun yuborishga roziman.",
+            "Согласен(на) отправить данные для обработки.",
+            "I agree to send the data for processing.");
 
         public static string RegSubmit => T("Ro‘yxatdan o‘tish", "Зарегистрироваться", "Register");
         public static string RegSending => T("Yuborilmoqda…", "Отправка…", "Sending…");

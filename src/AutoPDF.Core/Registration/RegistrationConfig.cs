@@ -15,7 +15,7 @@ namespace AutoPDF.Core.Registration
         /// URL here and rebuild. While it is the placeholder below, registration is DISABLED and the plug-in
         /// works exactly as before — so a build without the URL is still fully usable.
         /// </summary>
-        public const string Endpoint = "__REGISTRATION_ENDPOINT__";
+        public const string Endpoint = "https://script.google.com/macros/s/AKfycbxLq4SmB2WQX-0CnlGJO20ICEyisTERPpscwuFZAY-ENsPPIaP7-uR_G9QCQ8JAu7r4jw/exec";
 
         /// <summary>Registration is required before AUTOPDF can be used (once <see cref="Endpoint"/> is set).</summary>
         public const bool Mandatory = true;

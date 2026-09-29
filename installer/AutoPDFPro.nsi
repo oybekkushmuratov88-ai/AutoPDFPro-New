@@ -32,6 +32,10 @@ RequestExecutionLevel admin
 !define AUTHOR "Kushmuratov Oybek"
 !define COPYRIGHT_YEAR "2026"
 !define BUNDLE_NAME "AutoPDFPro.bundle"
+; The registration web app (…/exec). Registration is collected during install and sent here.
+!ifndef REG_ENDPOINT
+  !define REG_ENDPOINT "https://script.google.com/macros/s/AKfycbyBVQunkWme4m-SuCLQI3YzLdKtn0dNejhxvZIoJpitHc8DwWJMJlP39PiVIfmcvekkQA/exec"
+!endif
 ; UpgradeCode of bundle\AutoPDFPro.bundle\PackageContents.xml: identifies this product's bundle
 !define UPGRADE_CODE "1199BA7E-5919-42A7-A870-A8B38B9554FC"
 !define REG_KEY "Software\AutoPDFPro"
@@ -54,8 +58,18 @@ ShowUninstDetails hide
 !include LogicLib.nsh
 !include FileFunc.nsh
 !include x64.nsh
+!include nsDialogs.nsh
 
 Var BackupDir
+Var RegName
+Var RegEmail
+Var RegPhone
+Var RegConsent
+Var RegDelivered
+Var RegNameCtl
+Var RegEmailCtl
+Var RegPhoneCtl
+Var RegConsentCtl
 
 ;-------------------------------------------------------------------------------------------
 ; Modern UI
@@ -78,10 +92,13 @@ Var BackupDir
 !define MUI_LANGDLL_ALLLANGUAGES
 !define MUI_LANGDLL_WINDOWTITLE "${PRODUCT} ${VERSION}"
 !define MUI_LANGDLL_INFO "Tilni tanlang · Выберите язык · Select a language"
+; Always ask for the language, even on an update (do not silently reuse the saved one).
+!define MUI_LANGDLL_ALWAYSSHOW
 
 !define MUI_WELCOMEPAGE_TEXT "$(WelcomeText)"
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE WelcomeLeave
 !insertmacro MUI_PAGE_WELCOME
+Page custom RegPageCreate RegPageLeave
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TEXT "$(FinishText)"
 !insertmacro MUI_PAGE_FINISH
@@ -110,6 +127,51 @@ LangString FinishText ${LANG_ENGLISH} "$(^NameDA) has been installed.$\r$\n$\r$\
 LangString PluginLanguage ${LANG_UZBEK} "Uzbek"
 LangString PluginLanguage ${LANG_RUSSIAN} "Russian"
 LangString PluginLanguage ${LANG_ENGLISH} "English"
+
+; ---- Registration page ----
+LangString RegPageTitle ${LANG_UZBEK} "Ro‘yxatdan o‘tish"
+LangString RegPageTitle ${LANG_RUSSIAN} "Регистрация"
+LangString RegPageTitle ${LANG_ENGLISH} "Registration"
+
+LangString RegPageSubtitle ${LANG_UZBEK} "Dasturdan foydalanish uchun bir marta ro‘yxatdan o‘ting"
+LangString RegPageSubtitle ${LANG_RUSSIAN} "Зарегистрируйтесь один раз, чтобы пользоваться программой"
+LangString RegPageSubtitle ${LANG_ENGLISH} "Register once to use the program"
+
+LangString RegPageIntro ${LANG_UZBEK} "AutoPDF Pro’dan foydalanish uchun ismingiz va e-pochtangizni kiriting."
+LangString RegPageIntro ${LANG_RUSSIAN} "Чтобы пользоваться AutoPDF Pro, введите имя и e-mail."
+LangString RegPageIntro ${LANG_ENGLISH} "To use AutoPDF Pro, enter your name and e-mail."
+
+LangString RegLblName ${LANG_UZBEK} "Ism-familiya:"
+LangString RegLblName ${LANG_RUSSIAN} "Имя и фамилия:"
+LangString RegLblName ${LANG_ENGLISH} "Full name:"
+
+LangString RegLblEmail ${LANG_UZBEK} "E-pochta (Gmail):"
+LangString RegLblEmail ${LANG_RUSSIAN} "Почта (Gmail):"
+LangString RegLblEmail ${LANG_ENGLISH} "E-mail (Gmail):"
+
+LangString RegLblPhone ${LANG_UZBEK} "Telefon (ixtiyoriy):"
+LangString RegLblPhone ${LANG_RUSSIAN} "Телефон (необязательно):"
+LangString RegLblPhone ${LANG_ENGLISH} "Phone (optional):"
+
+LangString RegLblConsent ${LANG_UZBEK} "Ma’lumotlarni qayta ishlash uchun yuborishga roziman."
+LangString RegLblConsent ${LANG_RUSSIAN} "Согласен(на) отправить данные для обработки."
+LangString RegLblConsent ${LANG_ENGLISH} "I agree to send the data for processing."
+
+LangString RegErrName ${LANG_UZBEK} "Ismingizni kiriting."
+LangString RegErrName ${LANG_RUSSIAN} "Введите имя."
+LangString RegErrName ${LANG_ENGLISH} "Please enter your name."
+
+LangString RegErrEmail ${LANG_UZBEK} "E-pochta manzili noto‘g‘ri."
+LangString RegErrEmail ${LANG_RUSSIAN} "Неверный адрес e-mail."
+LangString RegErrEmail ${LANG_ENGLISH} "The e-mail address is not valid."
+
+LangString RegErrConsent ${LANG_UZBEK} "Davom etish uchun rozilikni belgilang."
+LangString RegErrConsent ${LANG_RUSSIAN} "Отметьте согласие, чтобы продолжить."
+LangString RegErrConsent ${LANG_ENGLISH} "Please tick the consent box to continue."
+
+LangString RegSending ${LANG_UZBEK} "Ma’lumot yuborilmoqda…"
+LangString RegSending ${LANG_RUSSIAN} "Отправка данных…"
+LangString RegSending ${LANG_ENGLISH} "Sending…"
 
 LangString MsgNeed64Bit ${LANG_UZBEK} "$(^NameDA) faqat 64 bitli Windows da ishlaydi (AutoCAD 2024 kabi)."
 LangString MsgNeed64Bit ${LANG_RUSSIAN} "$(^NameDA) работает только в 64-разрядной Windows (как и AutoCAD 2024)."
@@ -376,6 +438,113 @@ FunctionEnd
 ;-------------------------------------------------------------------------------------------
 ; Installer
 
+;-------------------------------------------------------------------------------------------
+; Registration page (shown during install; skipped in silent mode)
+
+Function RegPageCreate
+  !insertmacro MUI_HEADER_TEXT "$(RegPageTitle)" "$(RegPageSubtitle)"
+  nsDialogs::Create 1018
+  Pop $0
+  ${If} $0 == error
+    Abort
+  ${EndIf}
+
+  ${NSD_CreateLabel} 0 0 100% 22u "$(RegPageIntro)"
+  Pop $0
+
+  ${NSD_CreateLabel} 0 30u 35% 12u "$(RegLblName)"
+  Pop $0
+  ${NSD_CreateText} 37% 28u 61% 13u "$RegName"
+  Pop $RegNameCtl
+
+  ${NSD_CreateLabel} 0 48u 35% 12u "$(RegLblEmail)"
+  Pop $0
+  ${NSD_CreateText} 37% 46u 61% 13u "$RegEmail"
+  Pop $RegEmailCtl
+
+  ${NSD_CreateLabel} 0 66u 35% 12u "$(RegLblPhone)"
+  Pop $0
+  ${NSD_CreateText} 37% 64u 61% 13u "$RegPhone"
+  Pop $RegPhoneCtl
+
+  ${NSD_CreateCheckbox} 0 90u 100% 22u "$(RegLblConsent)"
+  Pop $RegConsentCtl
+  ${If} $RegConsent == 1
+    ${NSD_Check} $RegConsentCtl
+  ${EndIf}
+
+  nsDialogs::Show
+FunctionEnd
+
+Function RegPageLeave
+  ${NSD_GetText} $RegNameCtl $RegName
+  ${NSD_GetText} $RegEmailCtl $RegEmail
+  ${NSD_GetText} $RegPhoneCtl $RegPhone
+  ${NSD_GetState} $RegConsentCtl $RegConsent
+
+  ${If} $RegName == ""
+    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrName)"
+    Abort
+  ${EndIf}
+  Call ValidateEmail
+  ${If} $0 != 1
+    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrEmail)"
+    Abort
+  ${EndIf}
+  ${If} $RegConsent != 1
+    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrConsent)"
+    Abort
+  ${EndIf}
+
+  Call SubmitRegistration
+FunctionEnd
+
+; $0 = 1 when $RegEmail looks like an address (contains "@" and "."). A typo check only;
+; the real validation happens in the plug-in and on the server.
+Function ValidateEmail
+  Push $1
+  Push $2
+  StrCpy $0 0
+  StrLen $1 $RegEmail
+  ${If} $1 > 4
+    Push $RegEmail
+    Push "@"
+    Call StrContains
+    Pop $2
+    ${If} $2 == 1
+      Push $RegEmail
+      Push "."
+      Call StrContains
+      Pop $2
+      ${If} $2 == 1
+        StrCpy $0 1
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
+  Pop $2
+  Pop $1
+FunctionEnd
+
+; Sends the registration to the web app with PowerShell (values via environment variables, so no
+; quoting problems). $RegDelivered = 1 on success. A failure is not fatal: the machine is still marked
+; registered and the plug-in re-sends the details on a later run.
+Function SubmitRegistration
+  StrCpy $RegDelivered 0
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_URL", t "${REG_ENDPOINT}")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_NAME", t "$RegName")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_EMAIL", t "$RegEmail")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_PHONE", t "$RegPhone")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_VER", t "${VERSION}")'
+  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_LANG", t "$(PluginLanguage)")'
+
+  DetailPrint "$(RegSending)"
+  nsExec::Exec "powershell -NoProfile -ExecutionPolicy Bypass -Command $\"try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $$b=@{action='register';name=$$env:APDF_NAME;email=$$env:APDF_EMAIL;phone=$$env:APDF_PHONE;computer=$$env:COMPUTERNAME;user=$$env:USERNAME;version=$$env:APDF_VER;lang=$$env:APDF_LANG}; $$r=Invoke-RestMethod -Method Post -Uri $$env:APDF_URL -Body $$b -TimeoutSec 12; if ($$r -match 'OK') { exit 0 } else { exit 2 } } catch { exit 3 }$\""
+  Pop $0
+  ${If} $0 == "0"
+    StrCpy $RegDelivered 1
+  ${EndIf}
+FunctionEnd
+
 Function .onInit
   SetRegView 64
 
@@ -472,6 +641,18 @@ Section "AutoPDF Pro" SecMain
 
   WriteRegStr HKLM "${REG_KEY}" "Version" "${VERSION}"
   WriteRegStr HKLM "${REG_KEY}" "InstallDir" "$INSTDIR"
+
+  ; Machine-wide registration marker. The plug-in reads it and runs AUTOPDF straight away.
+  ; Only written when the registration page ran (i.e. not for a silent /S install).
+  ${If} $RegConsent == 1
+    WriteRegDWORD HKLM "${REG_KEY}" "Registered" 1
+    WriteRegStr HKLM "${REG_KEY}" "RegName" "$RegName"
+    WriteRegStr HKLM "${REG_KEY}" "RegEmail" "$RegEmail"
+    WriteRegStr HKLM "${REG_KEY}" "RegPhone" "$RegPhone"
+    WriteRegDWORD HKLM "${REG_KEY}" "RegDelivered" "$RegDelivered"
+    ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
+    WriteRegStr HKLM "${REG_KEY}" "RegAtUtc" "$2-$1-$0 $4:$5"
+  ${EndIf}
 
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${PRODUCT} (AutoCAD 2024)"
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${VERSION}"

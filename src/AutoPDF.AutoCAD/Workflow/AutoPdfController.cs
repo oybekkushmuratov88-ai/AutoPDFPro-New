@@ -130,6 +130,15 @@ namespace AutoPDF.AutoCAD.Workflow
             if (!RegistrationConfig.IsConfigured) return true;
 
             var store = new RegistrationStore(RegistrationStore.DefaultFilePath, _log);
+
+            // Registered during installation (Setup.exe writes a machine-wide marker) → AUTOPDF just works.
+            MachineRegistration machine = MachineRegistration.Read();
+            if (machine != null && machine.Registered)
+            {
+                if (!machine.Delivered) EnsureMachineDelivered(store, machine);
+                return true;
+            }
+
             RegistrationInfo existing = store.Load();
             if (existing != null && existing.HasCompleted)
             {
@@ -155,6 +164,36 @@ namespace AutoPDF.AutoCAD.Workflow
             MessageDialog.Show(AcadWindow, L.RegMandatoryAbort, L.AppTitle, DialogKind.Info);
             _log.Info(L.RegAbortedLog);
             return false;
+        }
+
+        /// <summary>
+        /// The installer registered the machine but could not reach the server (installed offline). Re-send
+        /// once from the plug-in and remember, per user, that it was delivered so the author is not e-mailed
+        /// again on every run.
+        /// </summary>
+        private void EnsureMachineDelivered(RegistrationStore store, MachineRegistration machine)
+        {
+            RegistrationInfo local = store.Load();
+            if (local != null && local.Delivered) return; // this user already re-sent it
+
+            var info = new RegistrationInfo
+            {
+                FullName = machine.Name,
+                Email = machine.Email,
+                Phone = machine.Phone,
+                Computer = MachineFacts.Computer,
+                WindowsUser = MachineFacts.WindowsUser,
+                MachineId = MachineFacts.MachineId(),
+                Os = MachineFacts.Os,
+                Version = AutoPdfApp.Version,
+                Language = L.Current.ToString(),
+                RegisteredAtUtc = string.IsNullOrEmpty(machine.AtUtc)
+                    ? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
+                    : machine.AtUtc,
+                Delivered = false
+            };
+            store.Save(info);
+            ResendInBackground(store, info);
         }
 
         /// <summary>Re-send a registration that reached this machine but not the server yet. Best effort.</summary>

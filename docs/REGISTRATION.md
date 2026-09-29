@@ -6,15 +6,16 @@ with the user's knowledge and consent; no password or secret is ever shipped ins
 
 ## What the user sees
 
-The first time a registered build runs `AUTOPDF`, a window appears (in the plug-in's language):
+Registration happens **during installation** (Setup.exe): after the language dialog and the welcome page,
+a page collects **name**, **e-mail** (and an optional phone) with a **consent** tick
+(*"I agree to send the data for processing"*). Setup sends it to the web app and writes a machine-wide marker
+(`HKLM\Software\AutoPDFPro`), so once installed **AUTOPDF works straight away** — no window on first run.
 
-* fields for **name** and **e-mail** (and an optional phone);
-* a panel that shows **exactly what is sent** — this computer's name, the Windows user and the version;
-* a **consent** tick: *"I agree to send the above details to the program's author (Kushmuratov Oybek)."*
+If the computer has no internet during install, the install still completes and the plug-in re-sends the
+registration automatically on a later `AUTOPDF` run (via the .NET client), so the author still receives it.
 
-Registration is **required** (`RegistrationConfig.Mandatory = true`): `AUTOPDF` does not continue until the
-user registers. If the computer has no internet, the user can still continue — the registration is saved
-locally and re-sent automatically on a later run (`RegistrationConfig.AllowOfflineContinue`).
+For a manual install (the zip, without Setup.exe) the plug-in falls back to asking on the first `AUTOPDF`:
+the same window, `RegistrationConfig.Mandatory = true`, with an offline "send later and continue" option.
 
 ## What the author gets
 
@@ -36,16 +37,15 @@ locally and re-sent automatically on a later run (`RegistrationConfig.AllowOffli
 ## Data flow
 
 ```
-AUTOPDF ─▶ EnsureRegistered()
-             │  registered already? ─ yes ─▶ continue (re-send in background if not delivered)
-             │  no
-             ▼
-        RegistrationWindow ── consent ──▶ HttpRegistrationGateway.Submit (form POST)
-                                                    │
-                                                    ▼
-                                   Google Apps Script (Code.gs, runs as the author)
-                                                    ├─ MailApp.sendEmail → author's Gmail
-                                                    └─ Sheet.appendRow   → Google Sheet
+Setup.exe ── registration page (name, e-mail, consent) ──▶ PowerShell POST to the web app
+     │                                                              │
+     └─ writes HKLM\Software\AutoPDFPro (Registered=1, …)           ▼
+                    │                            Google Apps Script (Code.gs, runs as the author)
+                    ▼                                     ├─ MailApp.sendEmail → author's Gmail
+AUTOPDF ─▶ EnsureRegistered()                            └─ Sheet.appendRow   → Google Sheet
+             │  HKLM marker present? ─ yes ─▶ run (re-send via .NET client only if not delivered)
+             │  no → %APPDATA% registration.xml? ─ yes ─▶ run
+             │  no → RegistrationWindow (manual-install fallback) ─▶ HttpRegistrationGateway.Submit
 
 AUTOPDFADMIN ─▶ UsersWindow ── admin key ──▶ FetchUsers (GET ?action=list&key=…)
                                                     ▼

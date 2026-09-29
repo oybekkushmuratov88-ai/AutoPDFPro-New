@@ -130,10 +130,11 @@ made by `installer\art\make_art.py`.
 
 ## Registration / Ro‘yxatdan o‘tish
 
-Optional and **off by default**. When the author sets it up, the user registers once (name + e-mail) the
-first time they run `AUTOPDF`; the details, plus this computer's name, the Windows user and the version, are
-shown to the user, sent on consent to a Google Apps Script the author deploys, and the author is e-mailed and
-sees every user in a Google Sheet (or in AutoCAD via `AUTOPDFADMIN` + the admin key).
+Optional and **off by default**. When the author sets it up, the user registers once **during installation**
+(a page in Setup.exe: name + e-mail + consent); Setup sends it to a Google Apps Script the author deploys and
+marks the machine registered, so **AUTOPDF works immediately** afterwards. The author is e-mailed and sees
+every user in a Google Sheet (or in AutoCAD via `AUTOPDFADMIN` + the admin key). A manual (zip) install falls
+back to asking on the first `AUTOPDF` run.
 
 * No password or secret ships in the plug-in — the e-mail is sent by the author's own Google account; the
   plug-in only holds the public web-app URL.

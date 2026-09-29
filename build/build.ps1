@@ -5,8 +5,9 @@
 .DESCRIPTION
     Output:
       artifacts\AutoPDFPro.bundle          ready-to-copy AutoCAD bundle
-      dist\AutoPDFPro-<ver>.zip            bundle + installer scripts + README
-      dist\AutoPDFPro-<ver>-Setup.exe      only if Inno Setup 6 (ISCC.exe) is installed
+      dist\AutoPDFPro-<ver>.zip            bundle + installer scripts + README (manual installation)
+      dist\AutoPDFPro-<ver>-Setup.exe      single-file installer; needs NSIS 3 (makensis.exe):
+                                           https://nsis.sourceforge.io  or  winget install NSIS.NSIS
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File build\build.ps1
@@ -24,7 +25,9 @@ $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..')
 Push-Location $repo
 try {
-    $version = '2.1.0'
+    # The version lives in Directory.Build.props (also used for the DLLs and the installer).
+    $version = [regex]::Match((Get-Content (Join-Path $repo 'Directory.Build.props') -Raw), '<Version>([^<]+)</Version>').Groups[1].Value
+    if (-not $version) { throw "Version not found in Directory.Build.props." }
     $bundle = Join-Path $repo 'artifacts\AutoPDFPro.bundle'
     $dist = Join-Path $repo 'dist'
 
@@ -55,15 +58,21 @@ try {
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
     Write-Host "Package: $zip" -ForegroundColor Green
 
-    $iscc = @(
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+    # Single-file installer (installer\AutoPDFPro.nsi, NSIS 3).
+    $makensis = @(
+        "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
+        "$env:ProgramFiles\NSIS\makensis.exe"
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($iscc) {
-        & $iscc (Join-Path $repo 'installer\AutoPDFPro.iss')
-        if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
+    if (-not $makensis) {
+        $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+        if ($cmd) { $makensis = $cmd.Source }
+    }
+    if ($makensis) {
+        & $makensis /V2 "/DVERSION=$version" (Join-Path $repo 'installer\AutoPDFPro.nsi')
+        if ($LASTEXITCODE -ne 0) { throw "makensis failed." }
+        Write-Host "Setup:   $(Join-Path $dist "AutoPDFPro-$version-Setup.exe")" -ForegroundColor Green
     } else {
-        Write-Host "Inno Setup 6 not found - Setup.exe skipped (zip + install.ps1 are enough)." -ForegroundColor Yellow
+        Write-Host "NSIS (makensis.exe) not found - Setup.exe skipped. Install NSIS 3 (winget install NSIS.NSIS) and run again." -ForegroundColor Yellow
     }
 }
 finally {

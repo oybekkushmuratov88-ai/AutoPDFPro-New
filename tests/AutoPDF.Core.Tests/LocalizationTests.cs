@@ -144,6 +144,45 @@ namespace AutoPDF.Core.Tests
             Directory.Delete(dir, true);
         }
 
+        [Theory]
+        [InlineData("Uzbek", UiLanguage.Uzbek)]
+        [InlineData("Russian", UiLanguage.Russian)]
+        [InlineData("English", UiLanguage.English)]
+        public void SettingsFileWrittenBySetupIsRead(string written, UiLanguage expected)
+        {
+            // installer\AutoPDFPro.nsi writes exactly this on a first installation: the language chosen for
+            // Setup, every other setting stays at its default.
+            string dir = Path.Combine(Path.GetTempPath(), "apdf-setup-" + Guid.NewGuid());
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, "settings.xml");
+            File.WriteAllText(file,
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<AutoPdfSettings>\r\n  <Language>" + written +
+                "</Language>\r\n</AutoPdfSettings>\r\n");
+            try
+            {
+                PluginSettings loaded = new SettingsService(file).Load();
+                PluginSettings defaults = new PluginSettings().Normalize();
+                defaults.Language = expected;
+
+                Assert.Equal(expected, loaded.Language);
+                Assert.Equal(ToXml(defaults), ToXml(loaded));
+                Assert.Empty(Directory.GetFiles(dir, "settings.xml.broken-*"));
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
+        private static string ToXml(PluginSettings settings)
+        {
+            using (var writer = new StringWriter())
+            {
+                new System.Xml.Serialization.XmlSerializer(typeof(PluginSettings)).Serialize(writer, settings);
+                return writer.ToString();
+            }
+        }
+
         private static string Get(UiLanguage language, Func<string> text)
         {
             UiLanguage previous = L.Current;

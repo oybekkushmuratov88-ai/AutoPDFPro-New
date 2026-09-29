@@ -90,11 +90,34 @@ settings persistence and PDF file checks. They run on Windows, Linux or CI.
 |---|---|
 | `AUTOPDF` unknown | Check that `…\ApplicationPlugins\AutoPDFPro.bundle\PackageContents.xml` exists; `APPLOAD` → *Startup Suite* is not needed. Restart AutoCAD. Bundles are only read at start-up. |
 | Security dialog "Загрузить исполняемый файл?" | Choose *Always load*, or install to `%ProgramFiles%\Autodesk\ApplicationPlugins` (trusted), or add the folder to *Options → Files → Trusted Locations*. |
-| `FileLoadException` / "operation is not supported" | The DLLs were blocked after download: run `install.ps1` (it unblocks) or *Properties → Unblock* on each DLL. |
-| Command defined twice / old UI appears | The old AutoPDF Pro bundle is still installed; `install.ps1` moves it to `%LOCALAPPDATA%\AutoPDFPro\Backup`. |
+| `FileLoadException` / "operation is not supported" | The DLLs were blocked after download (copied by hand from a zip): install with Setup.exe or `install.ps1` (it unblocks), or *Properties → Unblock* on each DLL. |
+| Command defined twice / old UI appears | The old AutoPDF Pro bundle is still installed; Setup.exe and `install.ps1` move it to `%LOCALAPPDATA%\AutoPDFPro\Backup`. |
 | Assembly binding issues | Enable Fusion logging (`fuslogvw.exe`, "Log bind failures") and restart AutoCAD. |
 
 ## 7. PDF viewer settings
 
 If *DWG To PDF → PDF Options → "Open in PDF viewer when done"* is enabled, a viewer opens after every
 sheet and may lock the file while the next sheet is written. Turn it off for batch export.
+
+## 8. Installer (Setup.exe)
+
+`installer\AutoPDFPro.nsi` (NSIS 3). What it reads and writes:
+
+| | |
+|---|---|
+| Files | `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` (manifest, 4 DLLs, `Uninstall.exe`) |
+| Registry | `HKLM\Software\AutoPDFPro` (`Version`, `InstallDir`, `InstallerLanguage`), `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\AutoPDFPro` |
+| Other AutoPDF bundles | Every `*.bundle` in the three ApplicationPlugins folders whose `PackageContents.xml` mentions AutoPDF (except this product's own bundle, found by its UpgradeCode) → `%LOCALAPPDATA%\AutoPDFPro\Backup\<date-time>\` + `ProgramFiles`, `ProgramData` or `AppData` |
+| Plug-in language | First installation only: `%APPDATA%\AutoPDFPro\settings.xml` with `<Language>` = language chosen for Setup (an existing file is never changed) |
+| AutoCAD 2024 present? | Any subkey of `HKLM\SOFTWARE\Autodesk\AutoCAD\R24.3` (otherwise: warning, install anyway = Yes/No) |
+| AutoCAD running? | `tasklist /FI "IMAGENAME eq acad.exe"`, or the installed `AutoPDF.AutoCAD.dll` cannot be opened for writing |
+
+Command line: `/S` = silent (no questions: AutoCAD 2024 missing → installs anyway; AutoCAD running → stops).
+Exit codes: `0` installed, `1` cancelled by the user (also: AutoCAD 2024 missing → *No*), `2` stopped (AutoCAD still running), `3` not 64-bit
+Windows, `740` no administrator rights. The uninstaller runs a copy of itself from `%TEMP%`, so for its exit code
+use `Uninstall.exe /S _?=C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` (no quotes).
+
+Testing without Windows: the wizard and the silent install/uninstall can be run in Wine. If only 64-bit Wine is
+available, compile a 64-bit test build of the same script:
+`makensis "-XTarget amd64-unicode" -DOUTFILE=/tmp/Setup-x64.exe installer/AutoPDFPro.nsi`
+(release builds use the standard 32-bit stub, which runs on every 64-bit Windows).

@@ -30,6 +30,25 @@ AutoCAD 2024.
 
 ## Installation
 
+### Setup.exe (recommended)
+
+1. Close AutoCAD.
+2. Run **`AutoPDFPro-2.1.0-Setup.exe`** → choose the language (O‘zbekcha / Русский / English) →
+   *O‘rnatish* / *Установить* / *Install*. Windows asks for administrator rights.
+3. Start AutoCAD 2024 and type **`AUTOPDF`**.
+
+Setup installs `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` for all users of the computer,
+moves other AutoPDF bundles (the old plug-in, per-user copies) to `%LOCALAPPDATA%\AutoPDFPro\Backup\<date-time>`
+so the `AUTOPDF` command is not defined twice, and on a first installation starts the plug-in in the language
+chosen for Setup. It waits until AutoCAD is closed (AutoCAD locks the DLLs) and warns when AutoCAD 2024 is not
+installed.
+
+Setup.exe is not code-signed, so Windows SmartScreen may show *“Windows protected your PC”* /
+*«Система Windows защитила ваш компьютер»*: click *More info → Run anyway* / *Подробнее → Выполнить в любом
+случае*.
+
+Silent installation: `AutoPDFPro-2.1.0-Setup.exe /S`.
+
 ### From the release zip (`AutoPDFPro-2.1.0.zip`)
 
 1. Close AutoCAD.
@@ -38,7 +57,7 @@ AutoCAD 2024.
    Without admin rights use **`install-peruser.bat`** (installs to `%APPDATA%\Autodesk\ApplicationPlugins`).
 3. Start AutoCAD 2024 → the command line shows `AutoPDF Pro v2.1.0 yuklandi` → type **`AUTOPDF`**.
 
-The installer unblocks the DLLs and moves an older AutoPDF Pro bundle to
+The script unblocks the DLLs and moves an older AutoPDF Pro bundle to
 `%LOCALAPPDATA%\AutoPDFPro\Backup\…` so the `AUTOPDF` command is not defined twice.
 
 ### Manual
@@ -47,13 +66,12 @@ Copy the folder `AutoPDFPro.bundle` to `C:\Program Files\Autodesk\ApplicationPlu
 `%APPDATA%\Autodesk\ApplicationPlugins\`), then *Properties → Unblock* the DLLs in
 `Contents\Windows\2024` if they came from the internet. Restart AutoCAD.
 
-### Setup.exe
-
-`build\build.ps1` also compiles `installer\AutoPDFPro.iss` when Inno Setup 6 is installed.
-
 ### Uninstall
 
-`uninstall.bat` (add `-Purge` to also delete settings and logs).
+* Installed with Setup.exe: *Settings → Apps* (or *Control Panel → Programs and Features*) →
+  **AutoPDF Pro (AutoCAD 2024)** → *Uninstall*. Settings and logs are kept unless you answer *Yes* to the last
+  question. Silent: `"C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle\Uninstall.exe" /S`.
+* Installed from the zip: `uninstall.bat` (add `-Purge` to also delete settings and logs).
 
 ## Usage (O‘zbekcha qisqacha)
 
@@ -84,7 +102,7 @@ need to be installed to build — the AutoCAD 2024 reference assemblies come fro
 `AutoCAD.NET 24.3.0` NuGet package, the .NET 4.8 reference assemblies from NuGet as well.
 
 ```powershell
-# everything: build, unit tests, bundle, zip (+ Setup.exe if Inno Setup is installed)
+# everything: build, unit tests, bundle, zip and Setup.exe (Setup.exe needs NSIS 3: winget install NSIS.NSIS)
 powershell -ExecutionPolicy Bypass -File build\build.ps1
 
 # or just
@@ -92,7 +110,12 @@ dotnet build AutoPDFPro.sln -c Release
 dotnet test  tests\AutoPDF.Core.Tests
 ```
 
-Output: `artifacts\AutoPDFPro.bundle` (ready to copy) and `dist\AutoPDFPro-2.1.0.zip`.
+On Linux or macOS `build/build.sh` builds, tests and compiles Setup.exe (`apt install nsis` /
+`brew install makensis`).
+
+Output: `artifacts\AutoPDFPro.bundle` (ready to copy), `dist\AutoPDFPro-2.1.0.zip` and
+`dist\AutoPDFPro-2.1.0-Setup.exe`. The installer is described by `installer\AutoPDFPro.nsi`; its pictures are
+made by `installer\art\make_art.py`.
 
 ## Documentation
 
@@ -110,7 +133,8 @@ its three translations side by side — to correct a translation, edit it there 
 
 ## Changelog
 
-* **2.1.0** — Interface in three languages (O‘zbekcha / Русский / English) with a language switch in
+* **2.1.0** — Single-file installer `AutoPDFPro-2.1.0-Setup.exe` (O‘zbekcha / Русский / English, AutoCAD
+  checks, moves older versions aside, uninstaller in *Apps*). Interface in three languages (O‘zbekcha / Русский / English) with a language switch in
   Settings; author badge with photo in the main window and an *About* window (Kushmuratov Oybek); author
   and copyright in the DLL properties, the bundle manifest and the installer; wider left panel and
   wrapping labels (the “Namuna ramka + diapazon” option was cut off).

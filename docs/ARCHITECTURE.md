@@ -35,8 +35,9 @@ AutoPDFPro.sln
 ├─ tests/AutoPDF.Core.Tests xUnit (runs on any OS)
 ├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without AutoCAD
 ├─ bundle/AutoPDFPro.bundle PackageContents.xml (template)
-├─ installer/              install.ps1 / .bat, uninstall, Inno Setup script
-└─ build/build.ps1         build + test + zip (+ Setup.exe)
+├─ installer/              AutoPDFPro.nsi → Setup.exe (NSIS 3); nsis/ corrected Uzbek installer texts;
+│                          art/ icon + wizard pictures (make_art.py); install.ps1/.bat, uninstall (zip)
+└─ build/                  build.ps1 (build + test + zip + Setup.exe), build.sh (Linux/macOS)
 ```
 
 Every build of `AutoPDF.AutoCAD` assembles `artifacts\AutoPDFPro.bundle` (manifest + 4 DLLs).
@@ -122,4 +123,5 @@ English so logs are comparable across languages.
 | WPF built in C# | Compiler-checked bindings/styles, no runtime XAML parse errors inside AutoCAD, buildable on CI. |
 | Windows.Data.Pdf for preview | Built into Windows 10/11 (AutoCAD 2024's platforms): no native PDF DLL to ship. The file is read into memory, so it is never locked. |
 | PdfSharp 1.50.5147 | MIT, single managed DLL, the version the previous plug-in already loaded in AutoCAD 2024. |
+| NSIS for Setup.exe | One small file (≈ 0.5 MB) with an uninstaller; compiles on Windows and Linux (CI); Unicode wizard in O‘zbekcha / Русский / English. |
 | Distinct assembly names (`AutoPDF.*`) | Cannot collide with the old `AutoPDFPro.*` assemblies if both bundles are present during migration. |

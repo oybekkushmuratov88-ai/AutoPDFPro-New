@@ -1,0 +1,716 @@
+<title>Dori qabul qilish jadvali</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: one phone-width column: sticky day switcher, dose cards with big Ichdim/Ichmadim buttons, then a 28-bubble blister pack overview */
+:root{
+  --bg:#EDF1F0; --surface:#FFFFFF; --sunk:#E2E8E6; --ink:#0F2320; --muted:#566863; --line:#D1DBD8;
+  --accent:#2446C8; --on-accent:#FFFFFF; --accent-soft:#E3E8FB;
+  --ok:#1B7F46; --on-ok:#FFFFFF; --ok-soft:#DCF0E3; --ok-line:#A9D8BB;
+  --bad:#BE3328; --on-bad:#FFFFFF; --bad-soft:#FAE2DF; --bad-line:#EDB2AB;
+  --late:#9A5E0C; --late-soft:#FAEED6;
+  --foil-1:#DDE4E2; --foil-2:#C3CDCA; --bubble:#F7FAF9; --bubble-hi:#FFFFFF; --shadow:rgba(15,35,32,.14);
+  --m-voniza:#7A57D1; --m-klacid:#E0A21B; --m-klamoks:#3A86D4; --m-mikro:#D4578A; --m-mikro-2:#F2D3DF;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1513; --surface:#15201D; --sunk:#1B2724; --ink:#E4EEEB; --muted:#94A6A1; --line:#27352F;
+    --accent:#93A6FF; --on-accent:#0D1513; --accent-soft:#1E2744;
+    --ok:#4CC27D; --on-ok:#06140C; --ok-soft:#14301F; --ok-line:#23553A;
+    --bad:#FF7B6F; --on-bad:#1E0806; --bad-soft:#3A1916; --bad-line:#6A2D27;
+    --late:#E6AA4E; --late-soft:#33260F;
+    --foil-1:#1D2926; --foil-2:#141D1B; --bubble:#1A2522; --bubble-hi:#26332F; --shadow:rgba(0,0,0,.4);
+    --m-voniza:#A68BF0; --m-klacid:#F0BC45; --m-klamoks:#6AAEF0; --m-mikro:#EC7FA9; --m-mikro-2:#5A2F42;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1513; --surface:#15201D; --sunk:#1B2724; --ink:#E4EEEB; --muted:#94A6A1; --line:#27352F;
+  --accent:#93A6FF; --on-accent:#0D1513; --accent-soft:#1E2744;
+  --ok:#4CC27D; --on-ok:#06140C; --ok-soft:#14301F; --ok-line:#23553A;
+  --bad:#FF7B6F; --on-bad:#1E0806; --bad-soft:#3A1916; --bad-line:#6A2D27;
+  --late:#E6AA4E; --late-soft:#33260F;
+  --foil-1:#1D2926; --foil-2:#141D1B; --bubble:#1A2522; --bubble-hi:#26332F; --shadow:rgba(0,0,0,.4);
+  --m-voniza:#A68BF0; --m-klacid:#F0BC45; --m-klamoks:#6AAEF0; --m-mikro:#EC7FA9; --m-mikro-2:#5A2F42;
+  color-scheme:dark;
+}
+
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+
+.app{max-width:36rem;margin-inline:auto;padding-inline:16px;padding-block:18px 56px;display:flex;flex-direction:column;gap:26px}
+
+/* Header */
+.head{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:.75rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.45rem;line-height:1.15;letter-spacing:-.01em}
+.range{color:var(--muted);font-size:.95rem}
+.course{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.course-bar{display:flex;height:8px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.course-bar i{display:block;height:100%;transition:width .3s ease}
+.course-bar .ok{background:var(--ok)}
+.course-bar .bad{background:var(--bad)}
+.course-text{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.course-text b{color:var(--ink);font-weight:700}
+
+/* Day panel */
+.day{display:flex;flex-direction:column;gap:12px}
+.daynav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;padding-block:8px;background:var(--bg)}
+.nav{width:48px;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer}
+.nav:disabled{opacity:.35;cursor:default}
+.nav svg{width:22px;height:22px}
+.daytitle{text-align:center;min-width:0}
+.daytitle h2{font-family:var(--f-display);font-weight:700;font-size:1.3rem;line-height:1.2}
+.daytitle p{color:var(--muted);font-size:.95rem}
+.daybar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;font-size:.95rem}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:.8rem;font-weight:600;background:var(--sunk);color:var(--muted)}
+.chip.today{background:var(--accent);color:var(--on-accent)}
+.daycount{font-weight:600;font-variant-numeric:tabular-nums}
+.link{margin-left:auto;background:none;border:0;padding:6px 2px;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+.doses{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.dose{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px 14px;transition:background-color .2s ease,border-color .2s ease}
+.dose.is-taken{background:var(--ok-soft);border-color:var(--ok-line)}
+.dose.is-missed{background:var(--bad-soft);border-color:var(--bad-line)}
+.dose.is-next{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.dose-time{font-family:var(--f-display);font-weight:500;font-size:1.2rem;line-height:1.3;font-variant-numeric:tabular-nums;min-width:3.4em}
+.dose-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dose-name{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-weight:700;font-size:1.02rem;line-height:1.3}
+.dose-name .str{font-weight:500;color:var(--muted)}
+.dose-how{color:var(--muted);font-size:.93rem}
+.dose-state{font-size:.88rem;font-weight:600;margin-top:2px}
+.is-taken .dose-state{color:var(--ok)}
+.is-missed .dose-state{color:var(--bad)}
+.flag{display:inline-block;width:max-content;margin-top:4px;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:600}
+.flag.late{background:var(--late-soft);color:var(--late)}
+.flag.now,.flag.next{background:var(--accent-soft);color:var(--accent)}
+
+.pill{flex:none;width:17px;height:11px;border-radius:50%;background:var(--med);box-shadow:inset 0 -2px 0 var(--shadow)}
+.pill.capsule{width:21px;height:10px;border-radius:6px;background:linear-gradient(90deg,var(--med) 0 50%,var(--m-mikro-2) 50% 100%)}
+
+.dose-actions{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act{min-height:50px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);font-weight:600;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.act svg{width:19px;height:19px;flex:none}
+.act.yes{color:var(--ok)}
+.act.no{color:var(--bad)}
+.act.yes[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--on-ok)}
+.act.no[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:var(--on-bad)}
+.act:disabled{cursor:not-allowed;color:var(--muted);opacity:.55}
+.act:active:not(:disabled){transform:scale(.98)}
+
+.daynote{font-size:.9rem;color:var(--muted);background:var(--sunk);border-radius:12px;padding:10px 12px}
+
+/* Blister pack */
+.section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.section-h h2{font-family:var(--f-display);font-weight:500;font-size:1.05rem}
+.section-h span{font-size:.85rem;color:var(--muted)}
+.pack{background:linear-gradient(160deg,var(--foil-1),var(--foil-2));border-radius:20px;padding:12px 10px 14px;box-shadow:0 1px 3px var(--shadow)}
+.weekhead,.blister{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.weekhead{margin-bottom:6px}
+.weekhead span{text-align:center;font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cell{position:relative;min-width:0;max-width:100%;aspect-ratio:4 / 5;border-radius:14px;border:1px solid var(--line);background:radial-gradient(120% 90% at 30% 20%,var(--bubble-hi),var(--bubble));box-shadow:0 2px 4px var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 2px 7px;cursor:pointer;line-height:1}
+.cell .c-num{font-family:var(--f-display);font-weight:500;font-size:.95rem;font-variant-numeric:tabular-nums}
+.cell .c-date{font-size:.62rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.c-dots{display:grid;grid-template-columns:repeat(3,6px);gap:3px;justify-content:center}
+.c-dots i{width:6px;height:6px;border-radius:50%;border:1.2px solid var(--muted);opacity:.55}
+.c-dots i.ok{background:var(--ok);border-color:var(--ok);opacity:1}
+.c-dots i.bad{background:var(--bad);border-color:var(--bad);opacity:1}
+.c-dots i.late{border-color:var(--late);opacity:1}
+.cell.full{background:var(--ok-soft);border-color:var(--ok-line);box-shadow:inset 0 2px 4px var(--shadow)}
+.cell.miss{border-color:var(--bad-line);border-width:1.5px}
+.cell.future{opacity:.72;box-shadow:none}
+.cell.is-today::after{content:"";position:absolute;inset:-4px;border-radius:17px;border:2px solid var(--accent);pointer-events:none}
+.cell.is-sel{outline:2px dashed var(--ink);outline-offset:1px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted)}
+.legend i.ok{background:var(--ok);border-color:var(--ok)}
+.legend i.bad{background:var(--bad);border-color:var(--bad)}
+.legend i.late{border-color:var(--late)}
+
+/* Regimen table */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:.72rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--sunk)}
+td.t{font-family:var(--f-display);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .med{display:flex;align-items:center;gap:7px;font-weight:600}
+td .muted{color:var(--muted)}
+td.nw{white-space:nowrap}
+
+/* Settings + install */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel h3{font-size:1rem;font-weight:700}
+.field{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.field label{font-weight:600}
+.field input{font:inherit;font-size:1rem;padding:9px 12px;border-radius:11px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-height:44px}
+.hint{font-size:.88rem;color:var(--muted)}
+.steps{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:.93rem}
+.steps b{font-weight:600}
+
+.foot{display:flex;flex-direction:column;gap:10px;font-size:.88rem;color:var(--muted)}
+.sync{display:inline-flex;align-items:center;gap:8px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync.ok i{background:var(--ok)}
+.sync.warn i{background:var(--late)}
+.sync.err i{background:var(--bad)}
+.warn-box{border-left:0;background:var(--sunk);border-radius:12px;padding:10px 12px;color:var(--ink)}
+
+@media (min-width:560px){
+  .cell .c-num{font-size:1.05rem}
+  .cell .c-date{font-size:.7rem}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+
+<main class="app">
+  <header class="head">
+    <p class="eyebrow">28 kunlik nazorat</p>
+    <h1>Dori qabul qilish jadvali</h1>
+    <p class="range" id="range">30-sentabr – 27-oktabr, 2026</p>
+    <div class="course">
+      <div class="course-bar" aria-hidden="true"><i class="ok" id="barOk" style="width:0%"></i><i class="bad" id="barBad" style="width:0%"></i></div>
+      <p class="course-text" id="courseText"><span><b>0</b> / 112 ichildi</span></p>
+    </div>
+  </header>
+
+  <section class="day" aria-labelledby="dayTitle">
+    <div class="daynav">
+      <button class="nav" id="prevDay" type="button" aria-label="Oldingi kun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="daytitle">
+        <h2 id="dayTitle">1-kun</h2>
+        <p id="dayDate">30-sentabr, Chorshanba</p>
+      </div>
+      <button class="nav" id="nextDay" type="button" aria-label="Keyingi kun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="daybar">
+      <span class="chip today" id="dayChip">Bugun</span>
+      <span class="daycount" id="dayCount">0 / 6 ichildi</span>
+      <button class="link" id="goToday" type="button" hidden>Bugunga qaytish</button>
+    </div>
+    <ol class="doses" id="doses"></ol>
+    <p class="daynote" id="dayNote" hidden></p>
+  </section>
+
+  <section aria-labelledby="packTitle">
+    <div class="section-h"><h2 id="packTitle">28 kunlik jadval</h2><span>Kunni tanlash uchun bosing</span></div>
+    <div class="pack">
+      <div class="weekhead" id="weekhead" aria-hidden="true"></div>
+      <div class="blister" id="blister"></div>
+    </div>
+    <div class="legend">
+      <span><i class="ok"></i>ichildi</span>
+      <span><i class="bad"></i>ichilmadi</span>
+      <span><i class="late"></i>belgilanmagan</span>
+      <span><i></i>hali vaqti kelmagan</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="planTitle">
+    <div class="section-h"><h2 id="planTitle">Qabul qilish tartibi</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Vaqt</th><th>Dori</th><th>Qabul qilish</th><th>Muddat</th></tr></thead>
+        <tbody id="planBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="setTitle">
+    <h3 id="setTitle">Sozlamalar</h3>
+    <div class="field">
+      <label for="startInput">Boshlanish sanasi</label>
+      <input type="date" id="startInput" value="2026-09-30">
+    </div>
+    <p class="hint">Tugash sanasi: <b id="endDate">27-oktabr, 2026</b>. Kurs boshqa kuni boshlangan bo‘lsa, sanani o‘zgartiring.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="installTitle">
+    <h3 id="installTitle">Telefon ekraniga qo‘shish</h3>
+    <ol class="steps">
+      <li><b>iPhone:</b> sahifani Safari’da oching, pastdagi “Ulashish” (Share) tugmasini bosing va “Add to Home Screen” / “На экран Домой” ni tanlang.</li>
+      <li><b>Android:</b> Chrome’da oching, yuqoridagi ⋮ menyuni bosing va “Add to Home screen” / “Добавить на гл. экран” ni tanlang.</li>
+    </ol>
+    <p class="hint">Belgilar bulutda saqlanadi, shuning uchun telefon va kompyuterda bir xil ko‘rinadi.</p>
+  </section>
+
+  <footer class="foot">
+    <p class="sync" id="sync"><i></i><span id="syncText">Ulanmoqda…</span></p>
+    <p class="warn-box">Dori qabul qilishda shifokor ko‘rsatmasi va retseptdagi ko‘rsatmalar ustuvor.</p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var COURSE_DAYS = 28;
+  var DEFAULT_START = "2026-09-30";
+  var LATE_MIN = 60;          // minutes after the dose time before an unmarked dose counts as overdue
+  var LS_KEY = "dori28.v1";
+
+  var MEDS = {
+    voniza:  {name:"VONIZA", str:"20 mg", form:"tablet", color:"var(--m-voniza)"},
+    klacid:  {name:"KLACID", str:"500 mg", form:"tablet", color:"var(--m-klacid)"},
+    klamoks: {name:"KLAMOKS", str:"1000 mg", form:"tablet", color:"var(--m-klamoks)"},
+    mikro:   {name:"MIKROBALANS SINBIOTIK", str:"", form:"capsule", color:"var(--m-mikro)"}
+  };
+  var DOSES = [
+    {id:"t0630", time:"06:30", med:"voniza",  qty:"1 tabletka", how:"ertalab, och qoringa", days:28},
+    {id:"t0730", time:"07:30", med:"klacid",  qty:"1 tabletka", how:"ovqatdan keyin",       days:14},
+    {id:"t0830", time:"08:30", med:"klamoks", qty:"1 tabletka", how:"ovqatdan keyin",       days:14},
+    {id:"t1300", time:"13:00", med:"mikro",   qty:"1 kapsula",  how:"tushlikdan keyin",     days:28},
+    {id:"t1930", time:"19:30", med:"klacid",  qty:"1 tabletka", how:"ovqatdan keyin",       days:14},
+    {id:"t2030", time:"20:30", med:"klamoks", qty:"1 tabletka", how:"ovqatdan keyin",       days:14}
+  ];
+  var TOTAL = 0;
+  for (var i = 1; i <= COURSE_DAYS; i++) TOTAL += dosesForDay(i).length;
+
+  var MONTHS = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
+  var WEEKDAYS = ["Yakshanba","Dushanba","Seshanba","Chorshanba","Payshanba","Juma","Shanba"];
+  var WD_SHORT = ["Ya","Du","Se","Ch","Pa","Ju","Sh"];
+
+  var ICON_YES = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var ICON_NO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
+
+  var state = {start: DEFAULT_START, days: {}, dirty: {}, view: 1, follow: true, mode: "loading", errCode: null};
+  var db = null;
+
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+  function isISO(s){ return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s); }
+  function dayNum(iso){ var p = iso.split("-"); return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5); }
+  function isoFromNum(n){ var d = new Date(n * 864e5); return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()); }
+  function todayISO(){ var n = new Date(); return n.getFullYear() + "-" + pad(n.getMonth() + 1) + "-" + pad(n.getDate()); }
+  function nowMin(){ var n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+  function toMin(t){ var p = t.split(":"); return (+p[0]) * 60 + (+p[1]); }
+  function weekday(iso){ return new Date(dayNum(iso) * 864e5).getUTCDay(); }
+  function longDate(iso){ var p = iso.split("-"); return (+p[2]) + "-" + MONTHS[+p[1] - 1] + ", " + WEEKDAYS[weekday(iso)]; }
+  function dayMonth(iso){ var p = iso.split("-"); return (+p[2]) + "-" + MONTHS[+p[1] - 1]; }
+  function shortDate(iso){ var p = iso.split("-"); return p[2] + "." + p[1]; }
+  function dosesForDay(k){ return DOSES.filter(function(d){ return k <= d.days; }); }
+  function dateForDay(k){ return isoFromNum(dayNum(state.start) + k - 1); }
+  function endISO(){ return dateForDay(COURSE_DAYS); }
+  function courseDayOf(iso){ return dayNum(iso) - dayNum(state.start) + 1; }
+  function clampDay(k){ return Math.max(1, Math.min(COURSE_DAYS, k)); }
+  function markOf(iso, id){ var d = state.days[iso]; return d && d.marks ? d.marks[id] || null : null; }
+
+  // ---------- Data hygiene: everything read from storage is untrusted ----------
+  function cleanMarks(m){
+    var out = {};
+    if (!m || typeof m !== "object") return out;
+    DOSES.forEach(function(d){
+      var v = m[d.id];
+      if (v && (v.s === "taken" || v.s === "missed")) out[d.id] = {s: v.s, at: (typeof v.at === "number" && isFinite(v.at)) ? v.at : null};
+    });
+    return out;
+  }
+  function cleanDays(o){
+    var out = {};
+    if (!o || typeof o !== "object") return out;
+    Object.keys(o).forEach(function(k){ if (isISO(k)) out[k] = {marks: cleanMarks(o[k] && o[k].marks)}; });
+    return out;
+  }
+
+  // ---------- Local cache (also the only store when the cloud store is unavailable) ----------
+  function loadLocal(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (!o || typeof o !== "object") return;
+      if (isISO(o.start)) state.start = o.start;
+      state.days = cleanDays(o.days);
+      if (o.dirty && typeof o.dirty === "object") Object.keys(o.dirty).forEach(function(k){ if (isISO(k)) state.dirty[k] = true; });
+    } catch (e) {}
+  }
+  function saveLocal(){
+    try { localStorage.setItem(LS_KEY, JSON.stringify({start: state.start, days: state.days, dirty: state.dirty})); } catch (e) {}
+  }
+
+  // ---------- Cloud store ----------
+  var inflight = {}, again = {};
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  function queueWrite(key, fn){
+    if (inflight[key]) { again[key] = true; return; }
+    inflight[key] = true;
+    (async function(){
+      try {
+        do { again[key] = false; await fn(); } while (again[key]);
+      } finally { inflight[key] = false; }
+    })();
+  }
+
+  async function putWithRetry(path, body){
+    try { await db.doc(path).set(body); }
+    catch (e) {
+      if (e && e.code === "unavailable") { await sleep(400 + Math.random() * 700); await db.doc(path).set(body); }
+      else throw e;
+    }
+  }
+
+  function syncDay(iso){
+    if (!db) return;
+    queueWrite("days/" + iso, async function(){
+      var marks = (state.days[iso] && state.days[iso].marks) || {};
+      try {
+        await putWithRetry("days/" + iso, {date: iso, marks: JSON.parse(JSON.stringify(marks)), updatedAt: Date.now()});
+        delete state.dirty[iso];
+        if (state.mode !== "sync") { state.mode = "sync"; state.errCode = null; }
+        saveLocal(); renderStatus();
+      } catch (e) {
+        state.dirty[iso] = true; saveLocal();
+        state.mode = "error"; state.errCode = (e && e.code) || "unavailable";
+        renderStatus();
+      }
+    });
+  }
+
+  function syncStart(){
+    if (!db) return;
+    queueWrite("plan/settings", async function(){
+      try { await putWithRetry("plan/settings", {startDate: state.start}); }
+      catch (e) { state.mode = "error"; state.errCode = (e && e.code) || "unavailable"; renderStatus(); }
+    });
+  }
+
+  function flushDirty(){ Object.keys(state.dirty).forEach(syncDay); }
+
+  function connect(){
+    var use = (window.claude && typeof window.claude.use === "function")
+      ? function(n){ return window.claude.use(n).catch(function(){ return null; }); }
+      : function(){ return Promise.resolve(null); };
+    use("db").then(function(ns){
+      if (!ns) { state.mode = "local"; renderStatus(); return; }
+      db = ns;
+      var first = true;
+      db.collection("days").onSnapshot(function(snap){
+        var fresh = {};
+        snap.docs.forEach(function(doc){
+          if (!isISO(doc.id)) return;
+          var x = doc.data();
+          fresh[doc.id] = {marks: cleanMarks(x && x.marks)};
+        });
+        // Marks made on this device that have not reached the cloud yet win until they are sent.
+        Object.keys(state.dirty).forEach(function(iso){ if (state.days[iso]) fresh[iso] = state.days[iso]; });
+        state.days = fresh;
+        if (state.mode === "loading" || state.mode === "local") state.mode = "sync";
+        saveLocal(); render();
+        if (first) { first = false; flushDirty(); }
+      }, function(err){ goLocal(err); });
+
+      db.doc("plan/settings").onSnapshot(function(snap){
+        var x = snap.exists ? snap.data() : null;
+        if (x && isISO(x.startDate) && x.startDate !== state.start) {
+          state.start = x.startDate;
+          if (state.follow) state.view = clampDay(courseDayOf(todayISO()));
+          saveLocal(); render();
+        }
+      }, function(){});
+      renderStatus();
+    });
+  }
+
+  function goLocal(err){
+    db = null;
+    state.mode = "local"; state.errCode = err && err.code || null;
+    renderStatus();
+  }
+
+  // ---------- Actions ----------
+  function setMark(iso, id, act){
+    var k = courseDayOf(iso);
+    if (k < 1 || k > COURSE_DAYS) return;
+    if (dayNum(iso) > dayNum(todayISO())) return;
+    var prev = state.days[iso] ? state.days[iso].marks : {};
+    var marks = {};
+    Object.keys(prev).forEach(function(key){ marks[key] = prev[key]; });
+    if (marks[id] && marks[id].s === act) delete marks[id];
+    else marks[id] = {s: act, at: Date.now()};
+    state.days[iso] = {marks: marks};
+    state.dirty[iso] = true;
+    saveLocal();
+    render();
+    if (db) syncDay(iso);
+  }
+
+  function goToDay(k, scroll){
+    state.view = clampDay(k);
+    var t = courseDayOf(todayISO());
+    state.follow = (state.view === clampDay(t));
+    render();
+    if (scroll) {
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.querySelector(".day").scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+    }
+  }
+
+  // ---------- Derived status ----------
+  // taken | missed | late (past, unmarked) | now (in its time window) | soon (later today) | future
+  function doseStatus(iso, d, rel){
+    var m = markOf(iso, d.id);
+    if (m) return m.s;
+    if (rel < 0) return "late";
+    if (rel > 0) return "future";
+    var diff = nowMin() - toMin(d.time);
+    if (diff > LATE_MIN) return "late";
+    if (diff >= -15) return "now";
+    return "soon";
+  }
+
+  function untilText(mins){
+    if (mins < 60) return mins + " daqiqadan so‘ng";
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? h + " soat " + m + " daqiqadan so‘ng" : h + " soatdan so‘ng";
+  }
+
+  function fmtAt(at, iso){
+    if (!at) return "";
+    var d = new Date(at);
+    var hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    var local = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    return local === iso ? hm : pad(d.getDate()) + "." + pad(d.getMonth() + 1) + " " + hm;
+  }
+
+  function stats(){
+    var s0 = dayNum(state.start), t = dayNum(todayISO()), nm = nowMin();
+    var r = {taken: 0, missed: 0, overdue: 0, due: 0, takenDue: 0};
+    for (var k = 1; k <= COURSE_DAYS; k++) {
+      var n = s0 + k - 1, iso = isoFromNum(n);
+      dosesForDay(k).forEach(function(d){
+        var m = markOf(iso, d.id);
+        if (m && m.s === "taken") r.taken++;
+        if (m && m.s === "missed") r.missed++;
+        var isDue = n < t || (n === t && nm >= toMin(d.time));
+        if (isDue) {
+          r.due++;
+          if (m && m.s === "taken") r.takenDue++;
+          if (!m && (n < t || nm - toMin(d.time) > LATE_MIN)) r.overdue++;
+        }
+      });
+    }
+    return r;
+  }
+
+  // ---------- Rendering ----------
+  function render(){
+    var active = document.activeElement;
+    var focusKey = active && active.getAttribute ? active.getAttribute("data-key") : null;
+    renderHeader();
+    renderDay();
+    renderBlister();
+    renderStatus();
+    if (focusKey) {
+      var again = document.querySelector('[data-key="' + focusKey + '"]');
+      if (again) again.focus({preventScroll: true});
+    }
+  }
+
+  function renderHeader(){
+    var s = state.start, e = endISO();
+    var sy = s.slice(0, 4), ey = e.slice(0, 4);
+    $("range").textContent = dayMonth(s) + (sy !== ey ? ", " + sy : "") + " – " + dayMonth(e) + ", " + ey;
+    $("endDate").textContent = dayMonth(e) + ", " + ey;
+    if ($("startInput").value !== s) $("startInput").value = s;
+
+    var st = stats();
+    $("barOk").style.width = (st.taken / TOTAL * 100).toFixed(2) + "%";
+    $("barBad").style.width = (st.missed / TOTAL * 100).toFixed(2) + "%";
+    var pct = st.due ? Math.round(st.takenDue / st.due * 100) + "%" : "—";
+    var parts = [
+      "<span><b>" + st.taken + "</b> / " + TOTAL + " ichildi</span>",
+      "<span><b>" + st.missed + "</b> ichilmadi</span>"
+    ];
+    if (st.overdue) parts.push("<span><b>" + st.overdue + "</b> belgilanmagan</span>");
+    parts.push("<span>bajarilish <b>" + pct + "</b></span>");
+    $("courseText").innerHTML = parts.join("");
+  }
+
+  function renderDay(){
+    var k = state.view, iso = dateForDay(k), today = todayISO();
+    var rel = dayNum(iso) - dayNum(today);
+    var todayK = courseDayOf(today);
+    var doses = dosesForDay(k);
+
+    $("dayTitle").textContent = k + "-kun";
+    $("dayDate").textContent = longDate(iso);
+    $("prevDay").disabled = k <= 1;
+    $("nextDay").disabled = k >= COURSE_DAYS;
+
+    var chip = $("dayChip");
+    chip.className = "chip" + (rel === 0 ? " today" : "");
+    chip.textContent = rel === 0 ? "Bugun" : rel === -1 ? "Kecha" : rel === 1 ? "Ertaga" : rel < 0 ? (-rel) + " kun oldin" : rel + " kundan keyin";
+
+    var taken = doses.filter(function(d){ var m = markOf(iso, d.id); return m && m.s === "taken"; }).length;
+    $("dayCount").textContent = taken + " / " + doses.length + " ichildi";
+    $("goToday").hidden = rel === 0 || todayK < 1 || todayK > COURSE_DAYS;
+
+    var nextId = null;
+    if (rel === 0) {
+      for (var j = 0; j < doses.length; j++) {
+        var s = doseStatus(iso, doses[j], 0);
+        if (s === "now" || s === "soon") { nextId = doses[j].id; break; }
+      }
+    }
+
+    var html = doses.map(function(d){
+      var m = MEDS[d.med];
+      var st = doseStatus(iso, d, rel);
+      var mark = markOf(iso, d.id);
+      var canMark = rel <= 0;
+      var cls = "dose" + (st === "taken" ? " is-taken" : st === "missed" ? " is-missed" : "") + (d.id === nextId ? " is-next" : "");
+      var line = "";
+      if (st === "taken") line = '<p class="dose-state">Ichildi' + (mark.at ? " · " + fmtAt(mark.at, iso) + " da belgilandi" : "") + "</p>";
+      else if (st === "missed") line = '<p class="dose-state">Ichilmadi' + (mark.at ? " · " + fmtAt(mark.at, iso) + " da belgilandi" : "") + "</p>";
+      else if (st === "late") line = '<span class="flag late">Vaqti o‘tdi, belgilanmagan</span>';
+      else if (d.id === nextId && st === "now") line = '<span class="flag now">Ichish vaqti</span>';
+      else if (d.id === nextId) line = '<span class="flag next">Navbatdagi · ' + untilText(toMin(d.time) - nowMin()) + "</span>";
+
+      var yesOn = mark && mark.s === "taken", noOn = mark && mark.s === "missed";
+      var dis = canMark ? "" : " disabled";
+      var label = m.name + (m.str ? " " + m.str : "") + ", " + d.time;
+      return '<li class="' + cls + '">' +
+        '<div class="dose-time">' + d.time + "</div>" +
+        '<div class="dose-body">' +
+          '<p class="dose-name"><span class="pill' + (m.form === "capsule" ? " capsule" : "") + '" style="--med:' + m.color + '" aria-hidden="true"></span>' + m.name + (m.str ? ' <span class="str">' + m.str + "</span>" : "") + "</p>" +
+          '<p class="dose-how">' + d.qty + " · " + d.how + "</p>" + line +
+        "</div>" +
+        '<div class="dose-actions">' +
+          '<button type="button" class="act yes" data-act="taken" data-iso="' + iso + '" data-dose="' + d.id + '" data-key="y' + iso + d.id + '" aria-pressed="' + (yesOn ? "true" : "false") + '" aria-label="' + label + ': ichdim"' + dis + ">" + ICON_YES + "Ichdim</button>" +
+          '<button type="button" class="act no" data-act="missed" data-iso="' + iso + '" data-dose="' + d.id + '" data-key="n' + iso + d.id + '" aria-pressed="' + (noOn ? "true" : "false") + '" aria-label="' + label + ': ichmadim"' + dis + ">" + ICON_NO + "Ichmadim</button>" +
+        "</div>" +
+      "</li>";
+    }).join("");
+    $("doses").innerHTML = html;
+
+    var notes = [];
+    if (rel > 0) notes.push("Bu kun hali kelmagan. Belgilash shu kuni ochiladi.");
+    if (k > 14) notes.push("KLACID va KLAMOKS 14 kun ichiladi. 15-kundan boshlab faqat VONIZA va MIKROBALANS qoladi.");
+    if (k === 14) notes.push("Bugun KLACID va KLAMOKS kursining oxirgi kuni.");
+    if (k === 1 && todayK < 1) notes.push("Kurs " + dayMonth(state.start) + " kuni boshlanadi.");
+    if (k === COURSE_DAYS && todayK > COURSE_DAYS) notes.push("28 kunlik kurs yakunlandi.");
+    $("dayNote").hidden = notes.length === 0;
+    $("dayNote").textContent = notes.join(" ");
+  }
+
+  function renderBlister(){
+    var s0 = dayNum(state.start), t = dayNum(todayISO()), nm = nowMin();
+    var wd0 = weekday(state.start);
+    var head = "";
+    for (var w = 0; w < 7; w++) head += "<span>" + WD_SHORT[(wd0 + w) % 7] + "</span>";
+    $("weekhead").innerHTML = head;
+
+    var html = "";
+    for (var k = 1; k <= COURSE_DAYS; k++) {
+      var n = s0 + k - 1, iso = isoFromNum(n);
+      var doses = dosesForDay(k);
+      var taken = 0, missed = 0, late = 0, dots = "";
+      doses.forEach(function(d){
+        var m = markOf(iso, d.id);
+        var c = "";
+        if (m && m.s === "taken") { c = "ok"; taken++; }
+        else if (m && m.s === "missed") { c = "bad"; missed++; }
+        else if (n < t || (n === t && nm - toMin(d.time) > LATE_MIN)) { c = "late"; late++; }
+        dots += '<i class="' + c + '"></i>';
+      });
+      var cls = "cell";
+      if (n > t) cls += " future";
+      else if (taken === doses.length) cls += " full";
+      else if (missed > 0) cls += " miss";
+      if (n === t) cls += " is-today";
+      if (k === state.view) cls += " is-sel";
+      var aria = k + "-kun, " + dayMonth(iso) + ": " + doses.length + " dan " + taken + " ichildi" + (missed ? ", " + missed + " ichilmadi" : "") + (late ? ", " + late + " belgilanmagan" : "");
+      html += '<button type="button" class="' + cls + '" data-day="' + k + '" data-key="c' + k + '" aria-label="' + aria + '"' + (k === state.view ? ' aria-current="date"' : "") + ">" +
+        '<span class="c-num">' + k + "</span>" +
+        '<span class="c-dots">' + dots + "</span>" +
+        '<span class="c-date">' + shortDate(iso) + "</span>" +
+      "</button>";
+    }
+    $("blister").innerHTML = html;
+  }
+
+  function renderPlan(){
+    $("planBody").innerHTML = DOSES.map(function(d){
+      var m = MEDS[d.med];
+      return "<tr>" +
+        '<td class="t">' + d.time + "</td>" +
+        '<td><span class="med"><span class="pill' + (m.form === "capsule" ? " capsule" : "") + '" style="--med:' + m.color + '" aria-hidden="true"></span>' + m.name + (m.str ? " " + m.str : "") + "</span></td>" +
+        "<td>" + d.qty + '<br><span class="muted">' + d.how + "</span></td>" +
+        '<td class="nw">' + d.days + " kun</td>" +
+      "</tr>";
+    }).join("");
+  }
+
+  function renderStatus(){
+    var el = $("sync"), txt = $("syncText");
+    var pending = Object.keys(state.dirty).length;
+    if (state.mode === "loading") { el.className = "sync"; txt.textContent = "Ulanmoqda…"; }
+    else if (state.mode === "sync") {
+      el.className = "sync ok";
+      txt.textContent = pending ? "Saqlanmoqda…" : "Saqlandi. Belgilar barcha qurilmalarda bir xil ko‘rinadi.";
+    }
+    else if (state.mode === "error") {
+      el.className = "sync err";
+      txt.textContent = "Oxirgi belgi bulutga yetib bormadi. U shu qurilmada saqlandi va internet tiklanganda qayta yuboriladi.";
+    }
+    else {
+      el.className = "sync warn";
+      txt.textContent = "Belgilar faqat shu qurilmada saqlanadi. Boshqa telefonda ko‘rish uchun sahifani claude.ai hisobingizga kirgan holda oching.";
+    }
+  }
+
+  // ---------- Events ----------
+  $("doses").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]");
+    if (!b || b.disabled) return;
+    setMark(b.getAttribute("data-iso"), b.getAttribute("data-dose"), b.getAttribute("data-act"));
+  });
+  $("blister").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-day]");
+    if (!b) return;
+    goToDay(+b.getAttribute("data-day"), true);
+  });
+  $("prevDay").addEventListener("click", function(){ goToDay(state.view - 1, false); });
+  $("nextDay").addEventListener("click", function(){ goToDay(state.view + 1, false); });
+  $("goToday").addEventListener("click", function(){ goToDay(courseDayOf(todayISO()), false); });
+  $("startInput").addEventListener("change", function(e){
+    var v = e.target.value;
+    if (!isISO(v) || v === state.start) return;
+    state.start = v;
+    state.view = clampDay(courseDayOf(todayISO()));
+    state.follow = true;
+    saveLocal(); render(); syncStart();
+  });
+
+  // Keep "today", overdue flags and countdowns current; retry unsent marks when back online.
+  var lastToday = todayISO();
+  function tick(){
+    var t = todayISO();
+    if (t !== lastToday) { lastToday = t; if (state.follow) state.view = clampDay(courseDayOf(t)); }
+    render();
+    if (db && state.mode === "error" && state.errCode !== "invalid_argument" && state.errCode !== "quota_exceeded") flushDirty();
+  }
+  setInterval(tick, 30000);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) tick(); });
+  window.addEventListener("online", function(){ if (db) flushDirty(); });
+
+  // ---------- Boot ----------
+  loadLocal();
+  state.view = clampDay(courseDayOf(todayISO()));
+  renderPlan();
+  render();
+  connect();
+})();
+</script>

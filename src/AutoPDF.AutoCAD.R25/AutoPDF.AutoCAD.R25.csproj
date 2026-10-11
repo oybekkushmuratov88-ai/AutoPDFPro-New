@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    AutoCAD 2025 and 2026 (R25.0-R25.1, .NET 8). AutoCAD 2025 moved from .NET Framework to .NET 8, so the
+    R24 assembly cannot load there: this is the same source compiled for .NET 8 against the AutoCAD 2025
+    reference assemblies. Source: src/AutoPDF.Cad (see CadHost.targets).
+    Output: artifacts\AutoPDFPro.bundle\Contents\Windows\R25.
+  -->
+  <PropertyGroup>
+    <!-- Same Windows SDK level as AutoPDF.UI (Windows.Data.Pdf renders the preview). -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>AutoPDF.AutoCAD.R25</AssemblyName>
+    <DefineConstants>$(DefineConstants);ACAD;ACAD_R25</DefineConstants>
+    <CadHostDescription>AutoCAD 2025-2026 (R25)</CadHostDescription>
+    <!-- AutoCAD loads the plug-in into its own process: no runtimeconfig/deps files are needed. -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- Class libraries on .NET 8 do not copy their package DLLs (PdfSharp) by default; the bundle needs them. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <Import Project="..\AutoPDF.Cad\CadHost.targets" />
+
+  <PropertyGroup>
+    <CadBundleDir>$(RepoRoot)\artifacts\AutoPDFPro.bundle</CadBundleDir>
+    <CadHostStageDir>$(CadBundleDir)\Contents\Windows\R25</CadHostStageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference assemblies only (AutoCAD supplies the real DLLs at run time). R25.0 = AutoCAD 2025. -->
+    <PackageReference Include="AutoCAD.NET" Version="25.0.1" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\AutoPDF.Core\AutoPDF.Core.csproj" />
+    <ProjectReference Include="..\..\src\AutoPDF.Pdf\AutoPDF.Pdf.csproj" />
   </ItemGroup>
 </Project>

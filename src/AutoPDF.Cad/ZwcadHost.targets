@@ -1,0 +1,42 @@
+<Project>
+  <!--
+    Common part of the three ZWCAD host projects (AutoPDF.ZWCAD.2024 / .2025 / .2026). Each sets ZwcadYear and
+    ZwcadApiVersion and imports this file. ZWCAD's .NET API (ZwSoft.ZwCAD.*) differs from AutoCAD's, so the
+    shared source is compiled against ZWCAD's own assemblies, once per ZWCAD release.
+
+    Compile-time references, in order of preference:
+      1. the official ZWCAD SDK / an installed ZWCAD:  dotnet build -p:ZwcadSdkDir="C:\Program Files\ZWSOFT\ZWCAD 2025"
+         (the folder that contains ZwManaged.dll and ZwDatabaseMgd.dll);
+      2. otherwise the NuGet package ZWCAD.NetApi of the same release (ZWSOFT-signed reference copies, so the
+         build also works on CI / Linux).
+    Either way the ZWCAD DLLs are reference-only (Private=false / ExcludeAssets=runtime): they are never copied
+    to the output or the installer; ZWCAD provides them at run time.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>AutoPDF.ZWCAD.$(ZwcadYear)</AssemblyName>
+    <DefineConstants>$(DefineConstants);ZWCAD;ZWCAD_$(ZwcadYear)</DefineConstants>
+    <CadHostDescription>ZWCAD $(ZwcadYear)</CadHostDescription>
+  </PropertyGroup>
+
+  <Import Project="CadHost.targets" />
+
+  <PropertyGroup>
+    <CadHostStageDir>$(RepoRoot)\artifacts\ZWCAD\$(ZwcadYear)</CadHostStageDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(ZwcadSdkDir)' == ''">
+    <PackageReference Include="ZWCAD.NetApi" Version="$(ZwcadApiVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ZwcadSdkDir)' != ''">
+    <Reference Include="ZwManaged">
+      <HintPath>$(ZwcadSdkDir)\ZwManaged.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ZwDatabaseMgd">
+      <HintPath>$(ZwcadSdkDir)\ZwDatabaseMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

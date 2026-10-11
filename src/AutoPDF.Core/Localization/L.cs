@@ -57,7 +57,10 @@ namespace AutoPDF.Core.Localization
 
         // ---- Product --------------------------------------------------------------------------
         public const string AppTitle = AppInfo.Product;
-        public static string AppSubtitle => T("AutoCAD 2024 · listlarni PDF ga eksport qilish", "AutoCAD 2024 · экспорт листов в PDF", "AutoCAD 2024 · export sheets to PDF");
+        /// <summary>The running CAD application, e.g. "ZWCAD 2025" — set by the plug-in at start-up.</summary>
+        public static string HostName { get; set; } = "AutoCAD / ZWCAD";
+
+        public static string AppSubtitle => HostName + T(" · listlarni PDF ga eksport qilish", " · экспорт листов в PDF", " · export sheets to PDF");
 
         // ---- Common words -----------------------------------------------------------------------
         public static string Yes => T("Ha", "Да", "Yes");
@@ -150,12 +153,13 @@ namespace AutoPDF.Core.Localization
         public static string AuthorRole => T("Dastur muallifi va ishlab chiquvchisi", "Автор и разработчик программы", "Author and developer");
 
         public static string AboutDescription => T(
-            "AutoCAD chizmasidagi listlarni (ramkalarni) avtomatik topib, har birini to‘g‘ri qog‘oz o‘lchami, masshtab va yo‘nalish bilan alohida PDF faylga chiqaradi.",
-            "Автоматически находит листы (рамки) на чертеже AutoCAD и сохраняет каждый в отдельный PDF с правильным форматом, масштабом и ориентацией.",
-            "Automatically finds the sheets (frames) in an AutoCAD drawing and exports each one to its own PDF with the correct paper size, scale and orientation.");
+            "AutoCAD / ZWCAD chizmasidagi listlarni (ramkalarni) avtomatik topib, har birini to‘g‘ri qog‘oz o‘lchami, masshtab va yo‘nalish bilan alohida PDF faylga chiqaradi.",
+            "Автоматически находит листы (рамки) на чертеже AutoCAD / ZWCAD и сохраняет каждый в отдельный PDF с правильным форматом, масштабом и ориентацией.",
+            "Automatically finds the sheets (frames) in an AutoCAD / ZWCAD drawing and exports each one to its own PDF with the correct paper size, scale and orientation.");
 
         public static string VersionText(string version) => T("Versiya ", "Версия ", "Version ") + version;
-        public static string Compatibility => T("AutoCAD 2024 · Windows 10/11 (64-bit)", "AutoCAD 2024 · Windows 10/11 (64 бит)", "AutoCAD 2024 · Windows 10/11 (64-bit)");
+        public static string Compatibility => T(CompatibilityHosts + " · Windows 10/11 (64-bit)", CompatibilityHosts + " · Windows 10/11 (64 бит)", CompatibilityHosts + " · Windows 10/11 (64-bit)");
+        public const string CompatibilityHosts = "AutoCAD 2021–2026 · ZWCAD 2024–2026";
 
         public static string Copyright => F(T(
             "© {0} {1}. Barcha huquqlar himoyalangan.",

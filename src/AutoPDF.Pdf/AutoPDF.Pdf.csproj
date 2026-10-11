@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The PDF half of the export, shared by every CAD host: the per-sheet pipeline (plot → verify file → verify
+    page size/orientation → crop → verify again) and the PdfSharp page tools. No CAD references: the hosts
+    plug in through ISheetPlotter / IMediaPlanner.
+      net48  AutoCAD 2021-2024, ZWCAD 2024-2026
+      net8.0 AutoCAD 2025-2026 and the unit tests
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
+    <RootNamespace>AutoPDF.Pdf</RootNamespace>
+    <AssemblyName>AutoPDF.Pdf</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- PDF page inspection and cropping (MIT licence). net20 build; runs on .NET 8 with the code-page provider. -->
+    <PackageReference Include="PdfSharp" Version="1.50.5147" NoWarn="NU1701" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AutoPDF.Core\AutoPDF.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AutoPDF.Core.Tests" />
+  </ItemGroup>
+</Project>

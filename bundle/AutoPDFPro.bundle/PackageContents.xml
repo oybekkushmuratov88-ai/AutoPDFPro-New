@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  AutoPDF Pro — Autodesk application bundle for AutoCAD 2024 (R24.3), Windows 64-bit.
-  Install by copying the whole AutoPDFPro.bundle folder to one of:
-    %ProgramData%\Autodesk\ApplicationPlugins   (all users, trusted location — recommended)
-    %AppData%\Autodesk\ApplicationPlugins       (current user)
-  See README.md / installer\install.ps1.
+  AutoPDF Pro — Autodesk application bundle, Windows 64-bit. One bundle, two builds; AutoCAD loads the one
+  whose RuntimeRequirements match its release:
+    Contents/Windows/R24/AutoPDF.AutoCAD.dll       AutoCAD 2021, 2022, 2023, 2024 (R24.0-R24.3, .NET Framework 4.8)
+    Contents/Windows/R25/AutoPDF.AutoCAD.R25.dll   AutoCAD 2025, 2026 (R25.0-R25.1, .NET 8)
+  Setup.exe copies the bundle to %ProgramData%\Autodesk\ApplicationPlugins (all users, trusted location).
+  ZWCAD does not read Autodesk bundles; Setup.exe registers the ZWCAD builds separately (see docs/COMPATIBILITY.md).
 -->
 <ApplicationPackage
     SchemaVersion="1.0"
@@ -20,14 +21,14 @@
 
   <CompanyDetails Name="Kushmuratov Oybek" Url="" Email="" />
 
-  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
+  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.0" SeriesMax="R25.1" />
 
-  <Components Description="AutoPDF Pro for AutoCAD 2024">
-    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
+  <Components Description="AutoPDF Pro for AutoCAD 2021-2024">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.0" SeriesMax="R24.3" />
     <ComponentEntry
-        AppName="AutoPDFPro"
+        AppName="AutoPDFPro.R24"
         Version="2.2.0"
-        ModuleName="./Contents/Windows/2024/AutoPDF.AutoCAD.dll"
+        ModuleName="./Contents/Windows/R24/AutoPDF.AutoCAD.dll"
         AppDescription="AutoPDF Pro: listlarni aniqlash va PDF eksport (buyruq AUTOPDF)"
         LoadOnAutoCADStartup="True"
         LoadOnCommandInvocation="True">
@@ -35,7 +36,25 @@
         <Command Global="AUTOPDF" Local="AUTOPDF" />
         <Command Global="AUTOPDFMEDIA" Local="AUTOPDFMEDIA" />
         <Command Global="AUTOPDFLOG" Local="AUTOPDFLOG" />
-        <Command Global="AUTOPDFADMIN" Local="AUTOPDFADMIN" />
+        <Command Global="AUTOPDFLICENSE" Local="AUTOPDFLICENSE" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+
+  <Components Description="AutoPDF Pro for AutoCAD 2025-2026">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R25.1" />
+    <ComponentEntry
+        AppName="AutoPDFPro.R25"
+        Version="2.2.0"
+        ModuleName="./Contents/Windows/R25/AutoPDF.AutoCAD.R25.dll"
+        AppDescription="AutoPDF Pro: listlarni aniqlash va PDF eksport (buyruq AUTOPDF)"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="True">
+      <Commands GroupName="AUTOPDFPRO">
+        <Command Global="AUTOPDF" Local="AUTOPDF" />
+        <Command Global="AUTOPDFMEDIA" Local="AUTOPDFMEDIA" />
+        <Command Global="AUTOPDFLOG" Local="AUTOPDFLOG" />
+        <Command Global="AUTOPDFLICENSE" Local="AUTOPDFLICENSE" />
       </Commands>
     </ComponentEntry>
   </Components>

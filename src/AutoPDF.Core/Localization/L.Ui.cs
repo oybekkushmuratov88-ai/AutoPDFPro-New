@@ -147,7 +147,7 @@ namespace AutoPDF.Core.Localization
         public static string InfoMethod => T("Usul", "Способ", "Method");
         public static string InfoPlot => T("Plot", "Печать", "Plot");
         public static string InfoChecks => T("Tekshiruv", "Проверка", "Checks");
-        public const string MethodApi = "AutoCAD plot API";
+        public const string MethodApi = "CAD plot API";
         public static string MethodCommand => T("-PLOT buyrug‘i", "команда -PLOT", "-PLOT command");
         public static string CheckFileOk(string size) => F(T("✓ Fayl yaratildi va bo‘sh emas ({0})", "✓ Файл создан и не пустой ({0})", "✓ File created and not empty ({0})"), size);
         public static string CheckPageOk(object size) => T("✓ Sahifa o‘lchami to‘g‘ri: ", "✓ Размер страницы верный: ", "✓ Page size correct: ") + size;

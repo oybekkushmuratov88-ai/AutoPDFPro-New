@@ -1,6 +1,6 @@
 namespace AutoPDF.Core.Localization
 {
-    /// <summary>Texts of the AutoCAD side: command-line prompts, detection, plotting, export and log messages.</summary>
+    /// <summary>Texts of the CAD side (AutoCAD / ZWCAD): command-line prompts, detection, plotting, export and log messages.</summary>
     public static partial class L
     {
         // ---- Command line ---------------------------------------------------------------------
@@ -29,6 +29,12 @@ namespace AutoPDF.Core.Localization
             "\nAutoPDF Pro v{0} yuklandi (© {1}). Buyruq: AUTOPDF  (diagnostika: AUTOPDFMEDIA, jurnal: AUTOPDFLOG)\n",
             "\nAutoPDF Pro v{0} загружен (© {1}). Команда: AUTOPDF  (диагностика: AUTOPDFMEDIA, журнал: AUTOPDFLOG)\n",
             "\nAutoPDF Pro v{0} loaded (© {1}). Command: AUTOPDF  (diagnostics: AUTOPDFMEDIA, log: AUTOPDFLOG)\n"), version, AppInfo.Author);
+        public static string HostWrongBuild(string build, string host) => F(T(
+            "\nAutoPDF Pro: bu modul {0} uchun, lekin {1} da ishga tushdi. AutoPDF Pro ni qayta o‘rnating (Setup.exe) — o‘rnatuvchi har bir dastur uchun mos modulni ulaydi.\n",
+            "\nAutoPDF Pro: этот модуль собран для {0}, но запущен в {1}. Переустановите AutoPDF Pro (Setup.exe) — установщик подключает подходящий модуль для каждой программы.\n",
+            "\nAutoPDF Pro: this module is built for {0} but runs in {1}. Reinstall AutoPDF Pro (Setup.exe) — the installer registers the matching module for each application.\n"), build, host);
+        public static string HostUnverified(string host) => F(T(
+            "{0} versiyasini aniqlab bo‘lmadi; AutoPDF davom etadi.", "Не удалось определить версию {0}; AutoPDF продолжает работу.", "Could not determine the {0} version; AutoPDF continues."), host);
         public static string LoadedLog(string version, string folder) => F(T("AutoPDF Pro {0} yuklandi: {1}", "AutoPDF Pro {0} загружен: {1}", "AutoPDF Pro {0} loaded: {1}"), version, folder);
         public static string EchoError => T("AutoPDF XATO: ", "AutoPDF ОШИБКА: ", "AutoPDF ERROR: ");
         public static string EchoWarning => T("AutoPDF ogohlantirish: ", "AutoPDF предупреждение: ", "AutoPDF warning: ");
@@ -107,10 +113,10 @@ namespace AutoPDF.Core.Localization
         public static string EnvUnits(string units) => T("ℹ Chizma birliklari: ", "ℹ Единицы чертежа: ", "ℹ Drawing units: ") + units;
 
         // ---- Plot engine / -PLOT ------------------------------------------------------------
-        public static string PlotBusy => T(
-            "AutoCAD boshqa chop etish jarayonini bajaryapti (fon rejimidagi plot tugashini kuting).",
-            "AutoCAD уже выполняет печать (дождитесь окончания фоновой печати).",
-            "AutoCAD is already plotting (wait for the background plot to finish).");
+        public static string PlotBusy => F(T(
+            "{0} boshqa chop etish jarayonini bajaryapti (fon rejimidagi plot tugashini kuting).",
+            "{0} уже выполняет печать (дождитесь окончания фоновой печати).",
+            "{0} is already plotting (wait for the background plot to finish)."), HostName);
         public static string ValidatedFormat => T(
             "Tasdiqlangan: qurilma={0}, qog‘oz={1} ({2:0.##} x {3:0.##} mm), burish={4}, masshtab={5}:{6}, oyna(DCS)={7}, uslub={8}",
             "Проверено: устройство={0}, формат={1} ({2:0.##} x {3:0.##} мм), поворот={4}, масштаб={5}:{6}, окно(DCS)={7}, стиль={8}",

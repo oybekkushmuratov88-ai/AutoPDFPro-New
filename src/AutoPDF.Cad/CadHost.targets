@@ -1,0 +1,59 @@
+<Project>
+  <!--
+    Shared build logic of the CAD host projects. The source in this folder (src/AutoPDF.Cad) is compiled
+    into each host assembly against that host's own SDK; CadApi.cs maps the vendor namespaces.
+
+      Host project                         Loads in                         Framework      Symbols
+      AutoPDF.AutoCAD                      AutoCAD 2021, 2022, 2023, 2024   net48          ACAD;ACAD_R24
+      AutoPDF.AutoCAD.R25                  AutoCAD 2025, 2026               net8.0-windows ACAD;ACAD_R25
+      AutoPDF.ZWCAD.2024 / .2025 / .2026   ZWCAD 2024 / 2025 / 2026         net48          ZWCAD;ZWCAD_20xx
+
+    A host project sets CadHostStageDir; after each build the plug-in and its dependencies (never the CAD
+    vendor's own DLLs) are copied there, ready for the installer:
+      artifacts\AutoPDFPro.bundle\Contents\Windows\R24|R25   AutoCAD (autoloader bundle)
+      artifacts\ZWCAD\2024|2025|2026                         ZWCAD (registered by the installer)
+  -->
+  <PropertyGroup>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>AutoPDF.Cad</RootNamespace>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</RepoRoot>
+    <CadSharedDir>$(MSBuildThisFileDirectory)</CadSharedDir>
+    <!-- The host folders contain only the project file; all code comes from src/AutoPDF.Cad. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(CadSharedDir)**\*.cs" Exclude="$(CadSharedDir)bin\**;$(CadSharedDir)obj\**" LinkBase="Cad" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(CadSharedDir)..\AutoPDF.Core\AutoPDF.Core.csproj" />
+    <ProjectReference Include="$(CadSharedDir)..\AutoPDF.Pdf\AutoPDF.Pdf.csproj" />
+    <ProjectReference Include="$(CadSharedDir)..\AutoPDF.UI\AutoPDF.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+
+  <Target Name="StageCadHost" AfterTargets="Build" Condition="'$(CadHostStageDir)' != ''">
+    <ItemGroup>
+      <CadHostBinaries Include="$(OutDir)*.dll" Exclude="$(OutDir)PdfSharp.Charting.dll" />
+      <CadHostBinaries Include="$(OutDir)AutoPDF.*.pdb" Condition="'$(Configuration)' == 'Debug'" />
+    </ItemGroup>
+    <RemoveDir Directories="$(CadHostStageDir)" />
+    <Copy SourceFiles="@(CadHostBinaries)" DestinationFolder="$(CadHostStageDir)" />
+    <Message Importance="high" Text="AutoPDF Pro $(CadHostDescription) -> $(CadHostStageDir)" />
+  </Target>
+
+  <!-- AutoCAD hosts also lay out the autoloader bundle (PackageContents.xml lists both R24 and R25). -->
+  <Target Name="StageAutoCadBundle" AfterTargets="StageCadHost" Condition="'$(CadBundleDir)' != ''">
+    <ItemGroup>
+      <BundleTemplate Include="$(RepoRoot)\bundle\AutoPDFPro.bundle\**\*" Exclude="$(RepoRoot)\bundle\AutoPDFPro.bundle\**\.gitkeep" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BundleTemplate)" DestinationFiles="@(BundleTemplate->'$(CadBundleDir)\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+</Project>

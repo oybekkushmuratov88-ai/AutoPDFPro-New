@@ -1,43 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    The AutoCAD 2024 plug-in (loaded from AutoPDFPro.bundle). Entry point: AutoPdfApp; command: AUTOPDF.
-    After every build the complete bundle is assembled in <repo>\artifacts\AutoPDFPro.bundle.
+    AutoCAD 2021, 2022, 2023 and 2024 (R24.0-R24.3, binary compatible, .NET Framework 4.8).
+    Compiled against the AutoCAD 2021 reference assemblies, so it uses only API that exists in all four.
+    Source: src/AutoPDF.Cad (see CadHost.targets). Output: artifacts\AutoPDFPro.bundle\Contents\Windows\R24.
   -->
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
-    <RootNamespace>AutoPDF.AutoCAD</RootNamespace>
     <AssemblyName>AutoPDF.AutoCAD</AssemblyName>
-    <PlatformTarget>x64</PlatformTarget>
-    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</RepoRoot>
-    <BundleTemplateDir>$(RepoRoot)\bundle\AutoPDFPro.bundle</BundleTemplateDir>
-    <BundleOutputDir>$(RepoRoot)\artifacts\AutoPDFPro.bundle</BundleOutputDir>
+    <DefineConstants>$(DefineConstants);ACAD;ACAD_R24</DefineConstants>
+    <CadHostDescription>AutoCAD 2021-2024 (R24)</CadHostDescription>
+  </PropertyGroup>
+
+  <Import Project="..\AutoPDF.Cad\CadHost.targets" />
+
+  <PropertyGroup>
+    <CadBundleDir>$(RepoRoot)\artifacts\AutoPDFPro.bundle</CadBundleDir>
+    <CadHostStageDir>$(CadBundleDir)\Contents\Windows\R24</CadHostStageDir>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- AutoCAD 2024 = R24.3. Reference assemblies only: AutoCAD supplies the real DLLs at run time. -->
-    <PackageReference Include="AutoCAD.NET" Version="24.3.0" ExcludeAssets="runtime" />
-    <!-- PDF page inspection and cropping (MIT licence). Same version the previous AutoPDF Pro shipped. -->
-    <PackageReference Include="PdfSharp" Version="1.50.5147" />
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Xaml" />
+    <!-- Reference assemblies only (AutoCAD supplies the real DLLs at run time). R24.0 = AutoCAD 2021. -->
+    <PackageReference Include="AutoCAD.NET" Version="24.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\AutoPDF.Core\AutoPDF.Core.csproj" />
-    <ProjectReference Include="..\AutoPDF.UI\AutoPDF.UI.csproj" />
-  </ItemGroup>
-
-  <!-- Build the ready-to-install bundle folder. -->
-  <Target Name="AssembleBundle" AfterTargets="Build">
-    <ItemGroup>
-      <BundleTemplate Include="$(BundleTemplateDir)\**\*" Exclude="$(BundleTemplateDir)\**\.gitkeep" />
-      <BundleBinaries Include="$(OutDir)AutoPDF.AutoCAD.dll;$(OutDir)AutoPDF.Core.dll;$(OutDir)AutoPDF.UI.dll;$(OutDir)PdfSharp.dll" />
-      <BundleBinaries Include="$(OutDir)AutoPDF.AutoCAD.pdb;$(OutDir)AutoPDF.Core.pdb;$(OutDir)AutoPDF.UI.pdb" Condition="'$(Configuration)' == 'Debug'" />
-    </ItemGroup>
-    <Copy SourceFiles="@(BundleTemplate)" DestinationFiles="@(BundleTemplate->'$(BundleOutputDir)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(BundleBinaries)" DestinationFolder="$(BundleOutputDir)\Contents\Windows\2024" SkipUnchangedFiles="false" />
-    <Message Importance="high" Text="AutoPDF Pro bundle -> $(BundleOutputDir)" />
-  </Target>
 </Project>

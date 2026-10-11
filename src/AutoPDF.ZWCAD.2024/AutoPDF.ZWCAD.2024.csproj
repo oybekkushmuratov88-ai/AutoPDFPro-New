@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- ZWCAD 2024 (.NET Framework). Source: src/AutoPDF.Cad; build logic: src/AutoPDF.Cad/ZwcadHost.targets. -->
+  <PropertyGroup>
+    <ZwcadYear>2024</ZwcadYear>
+    <ZwcadApiVersion>20.24.0</ZwcadApiVersion>
+  </PropertyGroup>
+  <Import Project="..\AutoPDF.Cad\ZwcadHost.targets" />
+</Project>

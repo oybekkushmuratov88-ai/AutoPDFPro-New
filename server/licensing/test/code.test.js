@@ -23,9 +23,9 @@ function parse(text) {
   return out;
 }
 
-function server({ keys = true } = {}) {
+function server({ keys = true, setup = true } = {}) {
   const ctx = createContext();
-  ctx.gas.setup();
+  if (setup) ctx.gas.setup();
   ctx.gas.onOpen();
   if (keys) {
     const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -314,4 +314,27 @@ test("signing key dialog: WebCrypto-generated key saved via the owner-only funct
   const msg = s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
   assert.match(msg, /Key ID [0-9a-f]{16}/);
   assert.throws(() => s.gas.saveSigningKey("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----"));
+});
+
+test("no separate setup needed: 'Generate signing keys' sets everything up", () => {
+  const s = server({ keys: false, setup: false });
+  assert.equal(s.state.triggers.length, 0);
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+  assert.equal(s.state.triggers.length, 1, "Status trigger installed");
+  assert.ok(s.state.props.LINK_SECRET && s.state.props.SPREADSHEET_ID && s.state.props.ADMIN_EMAIL);
+  assert.ok(s.ss.getSheetByName("Requests") && s.ss.getSheetByName("Log"));
+  s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+  assert.equal(s.state.triggers.length, 1, "not duplicated");
+});
+
+test("even before any setup, registration and the e-mailed links work", () => {
+  const s = server({ keys: false, setup: false });
+  const c = s.client();
+  const reply = s.register(c);
+  assert.equal(reply.ok, "1");
+  assert.equal(reply.status, "pending");
+  const mail = s.state.mails.find((m) => m.body.includes(c.installId));
+  const p = s.linkParams(mail, "approve");
+  assert.match(s.gas.reviewDecide(p.rid, p.op, p.exp, p.sig), /approved/);
 });

@@ -102,7 +102,7 @@ Settings: `%APPDATA%\AutoPDFPro\settings.xml`; logs: `%LOCALAPPDATA%\AutoPDFPro\
   administrator's Google account; the plug-in only verifies them. Without internet nothing new is granted; an
   existing approval keeps working offline for the grace period (14 days by default).
 
-Administrator setup (≈ 10 min): [server/licensing/README.md](server/licensing/README.md). Design and
+Administrator setup (≈ 5 min): [server/licensing/README.md](server/licensing/README.md). Design and
 security: [docs/LICENSING.md](docs/LICENSING.md).
 
 ## Building from source

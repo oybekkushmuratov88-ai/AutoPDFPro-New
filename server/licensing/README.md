@@ -5,7 +5,7 @@ ishlaydi: so‘rovlarni Google Jadvalga yozadi, sizga xat yuboradi, ruxsat/rad e
 tasdiqlangan kompyuterlarga **imzolangan litsenziya** beradi. Imzo kaliti va maxfiy qiymatlar faqat skript
 sozlamalarida (Script Properties) saqlanadi — plaginda hech qanday maxfiy narsa yo‘q.
 
-Bir marta, ~10 daqiqada sozlanadi. (English summary at the end.)
+Bir marta, ~5 daqiqada sozlanadi: kodni joylashtirish → yangi versiyani joylash → bitta menyu tugmasi. (English summary at the end.)
 
 ## 1. Jadval va skript
 
@@ -16,33 +16,31 @@ Bir marta, ~10 daqiqada sozlanadi. (English summary at the end.)
    Fayl faqat lotin harflari va belgilardan iborat (ASCII), shuning uchun nusxalashda buzilmaydi.
 4. **Saqlash** (Ctrl+S).
 
-## 2. `setup` ni bir marta ishga tushiring
-
-1. Yuqoridagi ro‘yxatdan **`setup`** funksiyasini tanlang → **Run** (Ishga tushirish).
-2. Google ruxsat so‘raydi: **Review permissions** → akkauntingiz → “Google hasn’t verified this app” chiqsa
-   **Advanced ▸ Go to … (unsafe)** → **Allow**. (Bu o‘zingizning skriptingiz.)
-3. *Execution log* da sozlamalar hisoboti chiqadi. `setup` quyidagilarni qiladi: **Requests** va **Log**
-   varaqlarini yaratadi, havolalar uchun maxfiy kalitni (LINK_SECRET) yaratadi, Status ustuni uchun
-   triggerni o‘rnatadi. Qayta ishga tushirish xavfsiz.
-
-## 3. Imzo kalitini yarating
-
-1. Jadval sahifasini yangilang (F5) — yuqorida **AutoPDF** menyusi paydo bo‘ladi.
-2. **AutoPDF ▸ Generate signing keys** → **Generate and save**.
-   Kalit **brauzeringizda** yaratiladi va to‘g‘ridan-to‘g‘ri skript sozlamalariga saqlanadi (hech qayerga
-   nusxalash kerak emas). Oynada *Key ID* va **ochiq kalit** (public key) ko‘rinadi — ochiq kalitni ulashish
-   xavfsiz.
-
-## 4. Joylash (Deploy) — havola o‘zgarmaydi
+## 2. Joylash (Deploy) — havola o‘zgarmaydi
 
 1. **Deploy ▸ Manage deployments** → mavjud **Web app** → ✏️ **Edit** → **Version: New version** → **Deploy**.
-   Havola (`…/exec`) **o‘zgarmaydi**, plagin uni allaqachon biladi.
+   Havola (`…/exec`) **o‘zgarmaydi**, plagin uni allaqachon biladi. **“New version” ni tanlash shart** — aks
+   holda eski kod ishlashda davom etadi.
    *(Agar “New deployment” qilsangiz, havola o‘zgaradi va plaginni yangi havola bilan qayta yig‘ish kerak
    bo‘ladi.)*
 2. Sozlamalar: **Execute as: Me**, **Who has access: Anyone**.
-3. `…/exec` havolasini brauzerda bir marta oching — **“AutoPDF Pro licence server is running.”** chiqishi kerak
-   (skript o‘z havolasini xatlardagi tugmalar uchun eslab qoladi).
-4. **AutoPDF ▸ Check configuration** — barcha qatorlar `OK` bo‘lishi kerak.
+3. Google ruxsat so‘rasa: **Review permissions** → akkauntingiz → “Google hasn’t verified this app” chiqsa
+   **Advanced ▸ Go to … (unsafe)** → **Allow**. (Bu o‘zingizning skriptingiz.)
+
+## 3. Imzo kaliti (va qolgan sozlash)
+
+1. Jadval sahifasini yangilang (F5) — yuqorida **AutoPDF** menyusi paydo bo‘ladi.
+2. **AutoPDF ▸ Generate signing keys** → **Generate and save** (ruxsat so‘rasa — **Allow**).
+   Kalit **brauzeringizda** yaratiladi va to‘g‘ridan-to‘g‘ri skript sozlamalariga saqlanadi. Shu bilan birga
+   **Requests** va **Log** varaqlari, havolalar uchun maxfiy kalit va Status ustuni triggeri ham yaratiladi —
+   boshqa hech narsa ishga tushirish shart emas. Oynada *Key ID* va **ochiq kalit** ko‘rinadi (uni ulashish
+   xavfsiz).
+
+## 4. Tekshirish
+
+1. `…/exec` havolasini brauzerda oching — **“AutoPDF Pro licence server is running.”** chiqishi kerak.
+   **“OK”** chiqsa — eski versiya hali ishlayapti, 2-qadamni qayta bajaring.
+2. **AutoPDF ▸ Check configuration** — barcha qatorlar `OK` bo‘lishi kerak.
 
 ## 5. Administrator e-pochtasi
 
@@ -94,10 +92,11 @@ Kodni o‘zgartirgandan keyin: **Deploy ▸ Manage deployments ▸ Edit ▸ New 
 |---|---|
 | Plaginda “Unexpected reply from the licence server” | Web app sifatida joylanmagan yoki *Who has access* ≠ *Anyone*. 4-qadamni takrorlang. |
 | “HTTP 401/403” | *Who has access: Anyone* bo‘lishi kerak. |
+| Plaginda “Unexpected reply from the licence server: OK” | Google’da hali eski skript ishlayapti: 1- va 2-qadam (**New version**). |
 | Ruxsat berildi, lekin plagin “tasdiqlanmadi” deydi | Imzo kaliti yo‘q: **AutoPDF ▸ Generate signing keys**, so‘ng plaginda **Hozir tekshirish**. |
 | Xat kelmayapti | Spam papkasi; **Check configuration** dagi “E-mails left today”; administrator e-pochtasi to‘g‘riligi. |
 | Xatdagi tugma “not valid (expired)” | Havola muddati o‘tgan — jadvaldan yoki menyudan foydalaning. |
-| Xatlardagi havolalar ochilmaydi | `/exec` havolasini brauzerda bir marta oching (3-qadam), **Check configuration** da *Web app URL* `OK` bo‘lsin. |
+| Xatlardagi havolalar ochilmaydi | `/exec` havolasini brauzerda bir marta oching (4-qadam), **Check configuration** da *Web app URL* `OK` bo‘lsin. |
 
 ## Testlar (dasturchilar uchun)
 
@@ -110,12 +109,13 @@ xavfsizligi). `serve.js` esa C# mijozining uchidan-uchiga testida (`LicensingEnd
 ## English summary
 
 1. Open the Google Sheet → *Extensions ▸ Apps Script* → replace `Code.gs` with this folder's `Code.gs` → save.
-2. Run `setup` once and authorise (creates the *Requests* and *Log* sheets, the link secret and the Status
-   trigger).
+2. *Deploy ▸ Manage deployments ▸ Edit ▸ New version ▸ Deploy* (keeps the `/exec` URL; *Execute as: Me*,
+   *Who has access: Anyone*); authorise.
 3. Reload the sheet → *AutoPDF ▸ Generate signing keys* (RSA-2048 generated in your browser with WebCrypto and
-   stored in Script Properties; the public key is shown).
-4. *Deploy ▸ Manage deployments ▸ Edit ▸ New version ▸ Deploy* (keeps the `/exec` URL; *Execute as: Me*,
-   *Who has access: Anyone*). Open the `/exec` URL once; *AutoPDF ▸ Check configuration* must show `OK`.
+   stored in Script Properties; it also creates the *Requests*/*Log* sheets, the link secret and the Status
+   trigger — running `setup` separately is optional).
+4. Open the `/exec` URL: it must say *AutoPDF Pro licence server is running.* (plain `OK` = the old version is
+   still deployed). *AutoPDF ▸ Check configuration* must show `OK`.
 5. Administrator e-mail: *AutoPDF ▸ Set administrator e-mail* (default `DEFAULT_ADMIN_EMAIL`).
 
 Decide with the signed e-mail links (confirmation page), the *AutoPDF* menu or the Status column; set

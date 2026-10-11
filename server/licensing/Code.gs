@@ -1,7 +1,9 @@
 // AutoPDF Pro - licence / approval server (Google Apps Script, bound to a Google Sheet).
 //
-// Paste this whole file into Extensions > Apps Script of your sheet, run setup() once, then
-// Deploy > Web app (Execute as: Me, Who has access: Anyone). Step-by-step: server/licensing/README.md.
+// Paste this whole file into Extensions > Apps Script of your sheet, Deploy > Web app (Execute as: Me,
+// Who has access: Anyone; for an existing deployment: Edit > New version), then in the sheet run
+// AutoPDF > Generate signing keys (it also creates the sheets and the trigger). Step-by-step:
+// server/licensing/README.md.
 //
 // What it does
 //   * The plug-in POSTs registrations and status checks here over HTTPS.
@@ -258,9 +260,19 @@ function reviewLink_(requestId, op) {
 }
 
 function linkSignature_(requestId, op, exp) {
-  var secret = PropertiesService.getScriptProperties().getProperty("LINK_SECRET");
-  if (!secret) throw new Error("Run setup() first (LINK_SECRET missing).");
-  return hex_(Utilities.computeHmacSha256Signature("review|" + requestId + "|" + op + "|" + exp, secret));
+  return hex_(Utilities.computeHmacSha256Signature("review|" + requestId + "|" + op + "|" + exp, linkSecret_()));
+}
+
+/** The secret of the e-mailed links; created on first use, kept only in Script Properties. */
+function linkSecret_() {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty("LINK_SECRET");
+  if (!secret) {
+    var seed = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid() + new Date().getTime();
+    secret = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed));
+    props.setProperty("LINK_SECRET", secret);
+  }
+  return secret;
 }
 
 /** Returns null when the link is genuine and not expired, else the reason. */
@@ -429,6 +441,7 @@ function saveSigningKey(privatePem) {
   Utilities.computeRsaSha256Signature("test", pem); // throws when the key is unusable
   var publicB64 = Utilities.base64Encode(spki);
   PropertiesService.getScriptProperties().setProperties({ PRIVATE_KEY: pem, PUBLIC_KEY: publicB64 });
+  ensureSetup_(false); // so that this one menu step is the whole server setup
   log_("keys", "", "", "saved", keyId_(spki));
   return "Saved. Key ID " + keyId_(spki) + "\n\nPublic key (safe to share; optional built-in copy for the plug-in):\n" +
          "-----BEGIN PUBLIC KEY-----\n" + publicB64.replace(/(.{64})/g, "$1\n").replace(/\n$/, "") + "\n-----END PUBLIC KEY-----";
@@ -465,32 +478,37 @@ function configurationReport_() {
   var triggers = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === "onEditInstalled"; });
   return [
     (keys ? "OK  " : "--  ") + "Signing key: " + (keys ? keys.keyId : "missing (AutoPDF > Generate signing keys)"),
-    (props.getProperty("LINK_SECRET") ? "OK  " : "--  ") + "Link secret" + (props.getProperty("LINK_SECRET") ? "" : ": missing (run setup)"),
+    (props.getProperty("LINK_SECRET") ? "OK  " : "--  ") + "Link secret" + (props.getProperty("LINK_SECRET") ? "" : ": missing (AutoPDF > Generate signing keys)"),
     (props.getProperty("WEBAPP_URL") ? "OK  " : "--  ") + "Web app URL: " + (props.getProperty("WEBAPP_URL") || "unknown (deploy, then open the /exec URL once)"),
     "OK  Administrator e-mail: " + adminEmail_(),
-    (triggers.length ? "OK  " : "--  ") + "Status-column trigger" + (triggers.length ? "" : ": missing (run setup)"),
+    (triggers.length ? "OK  " : "--  ") + "Status-column trigger" + (triggers.length ? "" : ": missing (AutoPDF > Generate signing keys)"),
     "    E-mails left today: " + MailApp.getRemainingDailyQuota()
   ];
 }
 
-/** Run once from the editor: sheets, link secret, triggers. Safe to run again. */
+/**
+ * Optional (AutoPDF > Generate signing keys does the same): sheets, link secret, Status trigger.
+ * Safe to run again.
+ */
 function setup() {
   requireOwner_();
+  ensureSetup_(true);
+  Logger.log(configurationReport_().join("\n"));
+}
+
+/** Everything the server needs besides the signing key. recreateTrigger: replace an existing trigger. */
+function ensureSetup_(recreateTrigger) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var props = PropertiesService.getScriptProperties();
-  props.setProperty("SPREADSHEET_ID", ss.getId());
-  if (!props.getProperty("LINK_SECRET")) {
-    var seed = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid() + new Date().getTime();
-    props.setProperty("LINK_SECRET", hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed)));
-  }
+  if (ss) props.setProperty("SPREADSHEET_ID", ss.getId());
+  linkSecret_();
   if (!props.getProperty("ADMIN_EMAIL")) props.setProperty("ADMIN_EMAIL", DEFAULT_ADMIN_EMAIL);
   requests_();
   logSheet_();
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === "onEditInstalled") ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger("onEditInstalled").forSpreadsheet(ss).onEdit().create();
-  Logger.log(configurationReport_().join("\n"));
+  var existing = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === "onEditInstalled"; });
+  if (existing.length && !recreateTrigger) return;
+  existing.forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("onEditInstalled").forSpreadsheet(spreadsheet_()).onEdit().create();
 }
 
 /** Functions callable from a web page must be guarded: only the script owner may run them. */

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace AutoPDF.Core.Licensing
 {
@@ -72,17 +73,9 @@ namespace AutoPDF.Core.Licensing
         public LicenseRecord Load()
         {
             var r = new LicenseRecord();
-            if (!File.Exists(FilePath)) return r;
-
-            Dictionary<string, string> v;
-            try
-            {
-                v = Parse(File.ReadAllText(FilePath, Encoding.UTF8));
-            }
-            catch
-            {
-                return r;
-            }
+            string text = ReadWithRetry();
+            if (text == null) return r;
+            Dictionary<string, string> v = Parse(text);
 
             r.InstallId = Get(v, "installId");
             r.ClientKey = Get(v, "clientKey");
@@ -138,15 +131,56 @@ namespace AutoPDF.Core.Licensing
 
             string dir = Path.GetDirectoryName(FilePath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            string temp = FilePath + ".tmp";
+            // A unique temp name: AutoCAD and ZWCAD may save at the same moment.
+            string temp = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             File.WriteAllText(temp, sb.ToString(), new UTF8Encoding(false));
-            if (File.Exists(FilePath))
+            try
             {
-                File.Replace(temp, FilePath, null);
+                for (int attempt = 0; ; attempt++)
+                {
+                    try
+                    {
+                        if (File.Exists(FilePath)) File.Replace(temp, FilePath, null);
+                        else File.Move(temp, FilePath);
+                        return;
+                    }
+                    catch (IOException) when (attempt < 5)
+                    {
+                        Thread.Sleep(60); // the other process is reading or writing it right now
+                    }
+                }
             }
-            else
+            finally
             {
-                File.Move(temp, FilePath);
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ }
+            }
+        }
+
+        /// <summary>
+        /// The file's text, or null when it does not exist. A file that exists but cannot be read (another CAD
+        /// process is replacing it) is retried and then reported as an exception — never mistaken for "no
+        /// licence", which would create a new installation ID and lose the approval.
+        /// </summary>
+        private string ReadWithRetry()
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return File.ReadAllText(FilePath, Encoding.UTF8);
+                }
+                catch (FileNotFoundException)
+                {
+                    return null;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    return null;
+                }
+                catch (IOException) when (attempt < 5)
+                {
+                    Thread.Sleep(60);
+                }
             }
         }
 

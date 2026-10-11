@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Output:
-      artifacts\AutoPDFPro.bundle          ready-to-copy AutoCAD bundle
+      artifacts\AutoPDFPro.bundle          ready-to-copy AutoCAD bundle (R24 = 2021-2024, R25 = 2025-2026)
+      artifacts\ZWCAD\<year>               ZWCAD 2024 / 2025 / 2026 builds
       dist\AutoPDFPro-<ver>.zip            bundle + installer scripts + README (manual installation)
       dist\AutoPDFPro-<ver>-Setup.exe      single-file installer; needs NSIS 3 (makensis.exe):
                                            https://nsis.sourceforge.io  or  winget install NSIS.NSIS
@@ -31,8 +32,10 @@ try {
     $bundle = Join-Path $repo 'artifacts\AutoPDFPro.bundle'
     $dist = Join-Path $repo 'dist'
 
-    # Start from a clean bundle so no stale files (e.g. Debug .pdb) are shipped.
+    # Start from clean staging folders so no stale files (e.g. Debug .pdb) are shipped.
     if (Test-Path $bundle) { Remove-Item $bundle -Recurse -Force }
+    $zwcad = Join-Path $repo 'artifacts\ZWCAD'
+    if (Test-Path $zwcad) { Remove-Item $zwcad -Recurse -Force }
 
     dotnet build AutoPDFPro.sln -c $Configuration -nologo
     if ($LASTEXITCODE -ne 0) { throw "Build failed." }
@@ -40,6 +43,10 @@ try {
     if (-not $SkipTests) {
         dotnet test tests\AutoPDF.Core.Tests\AutoPDF.Core.Tests.csproj -c $Configuration -nologo --no-build
         if ($LASTEXITCODE -ne 0) { throw "Unit tests failed." }
+        if (Get-Command node -ErrorAction SilentlyContinue) {
+            node --test (Get-ChildItem server\licensing\test\*.test.js).FullName
+            if ($LASTEXITCODE -ne 0) { throw "Licence server tests failed." }
+        }
     }
 
     # Package: zip with the bundle, installer scripts and docs.
@@ -48,6 +55,7 @@ try {
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
     New-Item -ItemType Directory -Path $stage | Out-Null
     Copy-Item $bundle -Destination (Join-Path $stage 'AutoPDFPro.bundle') -Recurse
+    Copy-Item $zwcad -Destination (Join-Path $stage 'ZWCAD') -Recurse
     Copy-Item (Join-Path $repo 'installer\install.ps1'), (Join-Path $repo 'installer\install.bat'),
               (Join-Path $repo 'installer\install-peruser.bat'), (Join-Path $repo 'installer\uninstall.ps1'),
               (Join-Path $repo 'installer\uninstall.bat'), (Join-Path $repo 'README.md') -Destination $stage

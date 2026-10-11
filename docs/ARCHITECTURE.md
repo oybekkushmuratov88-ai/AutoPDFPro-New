@@ -4,52 +4,63 @@
 
 ```
 AutoPDFPro.sln
-├─ src/AutoPDF.Core        net48 + net8.0   no AutoCAD references — all testable logic
+├─ src/AutoPDF.Core        net48 + net8.0   no CAD references — all testable logic
 │   ├─ Geometry/           Bounds2d, RectangleRecognizer
 │   ├─ Paper/              PaperSize, PaperFormatCatalog (ISO + ГОСТ), PaperSizeResolver (scale + snapping)
 │   ├─ Models/             SheetModel, SheetCandidateFilter, SheetResult, ExportSummary
 │   ├─ Sorting/            SheetSorter
-│   ├─ Plotting/           MediaSelector, PdfPageGeometry (crop/orientation), PlotCommandBuilder (-PLOT answers)
+│   ├─ Plotting/           MediaSelector, PdfPageGeometry, PlotCommandBuilder (-PLOT answers),
+│   │                      PlotRequest / PlotRunInfo / PlotStepException (host-neutral plot job)
 │   ├─ Pdf/                PdfFileVerifier
+│   ├─ Hosting/            HostInfo, CadBuildTarget, HostCatalog (release → year, build ↔ host check)
+│   ├─ Licensing/          LicenseManager, HttpLicenseServer, LicenseToken, RsaPublicKey, LicenseStore,
+│   │                      InstallationIdentity, LicenseConfig (see LICENSING.md)
 │   ├─ Naming/             OutputFileNamer (01.pdf …)
 │   ├─ Settings/           PluginSettings, SettingsService (XML in %APPDATA%\AutoPDFPro)
 │   ├─ Logging/            LoggingService (%LOCALAPPDATA%\AutoPDFPro\Logs)
-│   ├─ Registration/       RegistrationConfig, RegistrationInfo + Store, MachineFacts, HttpRegistrationGateway
 │   └─ Localization/L*.cs  every user-visible text in O‘zbekcha / Русский / English (+ AppInfo: author)
-├─ src/AutoPDF.UI          net48 WPF, composed in C# (no XAML), no AutoCAD references
-│   ├─ Main/               MainWindow, MainViewModel, SheetRowViewModel
-│   ├─ Preview/            PreviewWindow (+VM), Cancel / Confirm / Confirm-all
-│   ├─ Settings/           SettingsWindow (+VM)
-│   ├─ Summary/            SummaryWindow
-│   ├─ About/              AboutWindow, AuthorInfo (embedded photo Assets/author.jpg, round avatar)
-│   ├─ Registration/       RegistrationWindow (+VM), UsersWindow (+VM, admin)
+├─ src/AutoPDF.Pdf         net48 + net8.0   the shared per-sheet PDF pipeline
+│   ├─ SheetPdfPipeline    plot → verify file → verify page → re-plot once if turned → crop → final check
+│   ├─ PlotterContracts    ISheetPlotter, IMediaPlanner (implemented by each CAD host)
+│   └─ PdfPageService      PdfSharp: read page box, crop
+├─ src/AutoPDF.UI          net48 + net8.0-windows WPF, composed in C# (no XAML), no CAD references
+│   ├─ Main/ Preview/ Settings/ Summary/ About/
+│   ├─ Licensing/          RegistrationWindow, LicenseStatusWindow (+VMs), LicenseToast
 │   └─ Services/           PdfPreviewRenderer (Windows.Data.Pdf), FolderPicker, MessageDialog, Shell
-├─ src/AutoPDF.AutoCAD     net48 x64 — the plug-in loaded by AutoCAD 2024
-│   ├─ AutoPdfApp.cs       IExtensionApplication (logging, dependency resolution)
-│   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFMEDIA, AUTOPDFLOG, AUTOPDFADMIN
+├─ src/AutoPDF.Cad         CAD-API source compiled into every host build (see COMPATIBILITY.md)
+│   ├─ CadApi.cs           vendor namespaces: Autodesk.AutoCAD.* or ZwSoft.ZwCAD.* (#if ZWCAD)
+│   ├─ AutoPdfApp.cs       IExtensionApplication (logging, dependency resolution, host check, licence timer)
+│   ├─ Commands/           AutoPdfCommands: AUTOPDF, AUTOPDFLICENSE, AUTOPDFMEDIA, AUTOPDFLOG
 │   ├─ Workflow/           AutoPdfController (main-window loop, scan/check/export, preview)
 │   ├─ Detection/          SheetDetector, FrameReader
-│   ├─ Plotting/           PlotSettingsService, PlotService, CommandLinePlotter,
-│   │                      CustomPaperSizeManager, PageSetupService, PdfExportService
-│   ├─ Pdf/                PdfPageService (PdfSharp: read page box, crop)
+│   ├─ Plotting/           PlotService (API, ISheetPlotter), CommandLinePlotter (AutoCAD only),
+│   │                      PlotSettingsService, CustomPaperSizeManager (IMediaPlanner), PageSetupService,
+│   │                      PdfExportFactory (wires them into SheetPdfPipeline)
+│   ├─ Licensing/          LicenseGate (AUTOPDF gate, background/periodic checks, notifications)
 │   ├─ Transient/          SheetHighlighter (numbers drawn over the sheets, not in the DWG)
-│   └─ Infrastructure/     PlotStepException, SysVarScope, EditorEcho, AcadErrors
-├─ tests/AutoPDF.Core.Tests xUnit (runs on any OS)
-├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without AutoCAD (--demo register | users)
-├─ bundle/AutoPDFPro.bundle PackageContents.xml (template)
+│   └─ Infrastructure/     HostEnvironment (detection, Esc), SysVarScope, EditorEcho, CadErrors
+├─ src/AutoPDF.AutoCAD     host: AutoCAD 2021–2024 (net48, AutoCAD 2021 SDK)
+├─ src/AutoPDF.AutoCAD.R25 host: AutoCAD 2025–2026 (net8.0-windows, AutoCAD 2025 SDK)
+├─ src/AutoPDF.ZWCAD.2024 / .2025 / .2026   hosts: ZWCAD (net48, ZWCAD API of that year)
+├─ server/licensing        Code.gs (Google Apps Script licence server) + Node tests
+├─ tests/AutoPDF.Core.Tests xUnit (runs on any OS); fixtures/ test drawing for the in-CAD checklist
+├─ tools/AutoPDF.UiDemo    shows the windows with sample data, without CAD (--demo register | pending | toast …)
+├─ bundle/AutoPDFPro.bundle PackageContents.xml (template: R24 + R25 components)
 ├─ installer/              AutoPDFPro.nsi → Setup.exe (NSIS 3); nsis/ corrected Uzbek installer texts;
-│                          art/ icon + wizard pictures (make_art.py); registration/ Apps Script back end;
-│                          install.ps1/.bat, uninstall (zip)
+│                          art/ icon + wizard pictures (make_art.py); install.ps1/.bat, uninstall (zip)
 └─ build/                  build.ps1 (build + test + zip + Setup.exe), build.sh (Linux/macOS)
 ```
 
-Every build of `AutoPDF.AutoCAD` assembles `artifacts\AutoPDFPro.bundle` (manifest + 4 DLLs).
+Every host build stages its output: `artifacts\AutoPDFPro.bundle\Contents\Windows\R24|R25` (AutoCAD) and
+`artifacts\ZWCAD\<year>` (ZWCAD); the installer packs these folders.
 
 ## Command flow
 
 ```mermaid
 flowchart TD
-    A[AUTOPDF] --> B[AutoPdfController.Run<br/>load settings, switch to Model]
+    A[AUTOPDF] --> A1{LicenseGate<br/>approved?}
+    A1 -- no --> A2{{registration form / pending window}}
+    A1 -- yes --> B[AutoPdfController.Run<br/>load settings, switch to Model]
     B --> C{{MainWindow - modal}}
     C -- Skanerlash --> D[SheetDetector.Detect<br/>selection prompts]
     D --> E[PaperSizeResolver + SheetCandidateFilter<br/>SheetSorter, CustomPaperSizeManager.Plan]
@@ -57,7 +68,7 @@ flowchart TD
     C -- Tekshirish --> F[environment check + SheetHighlighter<br/>numbers on drawing, ENTER]
     F --> C
     C -- PDF yaratish --> G[names 01.pdf…, overwrite policy]
-    G --> H[for each sheet: PdfExportService.Export]
+    G --> H[for each sheet: SheetPdfPipeline.Export]
     H --> I{preview mode?}
     I -- yes --> J{{PreviewWindow}}
     J -- Tasdiqlash --> H
@@ -74,7 +85,7 @@ The main window is modal and **closes** for every action. Selection prompts, the
 `-PLOT` fallback therefore always run in the plain command context, never from inside a WPF event handler
 (the plot engine and `Editor.Command` require that).
 
-## Per-sheet export pipeline (`PdfExportService`)
+## Per-sheet export pipeline (`SheetPdfPipeline`, shared by all hosts)
 
 1. **prepare** – valid paper? output folder; existing file not locked (open in a PDF viewer) → deleted.
 2. **media:select** – `CustomPaperSizeManager.Plan`:
@@ -82,9 +93,9 @@ The main window is modal and **closes** for every action. Selection prompts, the
    * exact paper on the optional *custom sizes* plotter (`AutoPDFPro PDF.pc3`, see
      [CUSTOM_PAPER_SIZES.md](CUSTOM_PAPER_SIZES.md));
    * otherwise the smallest full-bleed paper that holds the sheet → **crop** later.
-3. **plot** – `PlotService` (PlotEngine): `PlotSettingsService.Create` (ordered steps, see ANALYSIS §1),
-   `PlotInfoValidator`, engine begin/end with guaranteed clean-up. On failure (setting *Auto*) →
-   `CommandLinePlotter` (`-PLOT`).
+3. **plot** – the host's `ISheetPlotter`: `PlotService` (PlotEngine): `PlotSettingsService.Create` (ordered
+   steps, see ANALYSIS §1), `PlotInfoValidator`, engine begin/end with guaranteed clean-up. On failure
+   (setting *Auto*) and on AutoCAD only → `CommandLinePlotter` (`-PLOT`).
 4. **verify:file** – exists, > 0 bytes, `%PDF-` header, `%%EOF` trailer (waits up to 3 s for the driver).
 5. **verify:page** – page size from the PDF (MediaBox + /Rotate). If width/height came out exchanged, the
    device places the drawing the other way round for that paper: the rotation is learned for that paper
@@ -115,27 +126,12 @@ every text exists in all three languages. Windows are built in code, therefore a
 closes and rebuilds the main window (`MainAction.Reload`). Step names in the log (`plot:set-media` …) stay
 English so logs are comparable across languages.
 
-## Registration
+## Licensing
 
-Optional and configured by the author. `RegistrationConfig.Endpoint` holds a Google Apps Script web-app URL;
-while it is the placeholder the whole feature is off (`IsConfigured == false`) and the plug-in is unchanged.
-
-At the start of `AutoPdfController.Run`, `EnsureRegistered()`:
-
-1. loads `%APPDATA%\AutoPDFPro\registration.xml` (`RegistrationStore`); if the machine has already
-   registered, it returns immediately (and quietly re-sends in the background if a previous send never
-   reached the server);
-2. otherwise shows `RegistrationWindow`. The user types name + e-mail (+ optional phone), sees the exact
-   facts that will leave the machine (`MachineFacts`: computer, Windows user, version), ticks consent and
-   presses Register;
-3. `HttpRegistrationGateway.Submit` POSTs the form to the web app (`Code.gs`), which — running inside the
-   author's Google account — e-mails the author and appends the user to a Google Sheet. On success the
-   registration is stored as delivered; on a network failure the user may continue and it is re-sent later.
-
-`AUTOPDFADMIN` reads the list back: `HttpRegistrationGateway.FetchUsers(adminKey)` (a GET whose reply is one
-`OK` line plus tab-separated rows) fills `UsersWindow`. The admin key is checked on the server and typed by
-the author, so it is never part of the distributed plug-in. All of `Registration/` lives in `AutoPDF.Core`
-with no AutoCAD dependency, so the gateway is unit-tested against a local `HttpListener`.
+`AutoPdfController.Run` starts with `LicenseGate.EnsureLicensed`: registration form on the first run, the
+persistent status window while pending/rejected, and a background re-check when already approved. The rules
+(signed approvals, offline grace, throttling) live in `AutoPDF.Core.Licensing.LicenseManager`; the server is
+`server/licensing/Code.gs`. See [LICENSING.md](LICENSING.md).
 
 ## Why these technical choices
 
@@ -146,8 +142,9 @@ with no AutoCAD dependency, so the gateway is unit-tested against a local `HttpL
 | Crop instead of writing PC3/PMP | AutoCAD has no API to add paper sizes; hand-writing PC3/PMP binaries risks breaking the user's plotters. Crop needs nothing but standard papers. An exact custom plotter is used when the user provides one. |
 | Orientation self-check | The meaning of PlotRotation relative to a paper's native orientation is device-specific; measuring the result makes it deterministic. |
 | WPF built in C# | Compiler-checked bindings/styles, no runtime XAML parse errors inside AutoCAD, buildable on CI. |
-| Windows.Data.Pdf for preview | Built into Windows 10/11 (AutoCAD 2024's platforms): no native PDF DLL to ship. The file is read into memory, so it is never locked. |
-| PdfSharp 1.50.5147 | MIT, single managed DLL, the version the previous plug-in already loaded in AutoCAD 2024. |
-| NSIS for Setup.exe | One small file (≈ 0.5 MB) with an uninstaller; compiles on Windows and Linux (CI); Unicode wizard in O‘zbekcha / Русский / English. |
-| Apps Script for registration | E-mail + storage run in the author's own Google account, so no password or SMTP secret ships in the plug-in; the client only holds a public web-app URL and never sees the user's Google password. |
+| Windows.Data.Pdf for preview | Built into Windows 10/11: no native PDF DLL to ship (the .NET 8 build carries the Windows SDK projection). The file is read into memory, so it is never locked. |
+| PdfSharp 1.50.5147 | MIT, single managed DLL, the version the previous plug-in already loaded in AutoCAD 2024; on .NET 8 the code-page provider is registered for it. |
+| One source, several host builds | AutoCAD R24, R25 and each ZWCAD release need assemblies compiled against their own SDK/runtime; `CadApi.cs` keeps the vendor difference in one place, the PDF logic is shared in `AutoPDF.Pdf`. |
+| NSIS for Setup.exe | One file (≈ 4 MB) for every host, with an uninstaller; compiles on Windows and Linux (CI); Unicode wizard in O‘zbekcha / Русский / English. |
+| Apps Script + Google Sheet for licensing | E-mail, storage and signing run in the administrator's own Google account, so no password, SMTP or signing secret ships in the plug-in; the client only holds the public web-app URL and verifies signatures with the public key. |
 | Distinct assembly names (`AutoPDF.*`) | Cannot collide with the old `AutoPDFPro.*` assemblies if both bundles are present during migration. |

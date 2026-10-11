@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Installs the AutoPDF Pro bundle for AutoCAD 2024.
+    Installs the AutoPDF Pro bundle for AutoCAD 2021-2026 (manual alternative to Setup.exe; ZWCAD needs Setup.exe or NETLOAD, see docs\COMPATIBILITY.md).
 
 .DESCRIPTION
     Copies AutoPDFPro.bundle to an Autodesk ApplicationPlugins folder, unblocks the files
@@ -47,8 +47,8 @@ if (-not $Source -or -not (Test-Path (Join-Path $Source 'PackageContents.xml')))
     throw "AutoPDFPro.bundle topilmadi. Avval build.ps1 ni ishga tushiring yoki -Source bilan bundle papkasini ko'rsating."
 }
 $Source = (Resolve-Path $Source).Path
-if (-not (Test-Path (Join-Path $Source 'Contents\Windows\2024\AutoPDF.AutoCAD.dll'))) {
-    throw "Bundle to'liq emas: Contents\Windows\2024\AutoPDF.AutoCAD.dll yo'q ($Source)."
+if (-not (Test-Path (Join-Path $Source 'Contents\Windows\R24\AutoPDF.AutoCAD.dll'))) {
+    throw "Bundle to'liq emas: Contents\Windows\R24\AutoPDF.AutoCAD.dll yo'q ($Source)."
 }
 
 # ---- Target folder ----------------------------------------------------------------------
@@ -112,7 +112,7 @@ Get-ChildItem -Path $destination -Recurse -File | Unblock-File
 
 Write-Host ""
 Write-Host "AutoPDF Pro o'rnatildi: $destination" -ForegroundColor Green
-Write-Host "AutoCAD 2024 ni ishga tushiring va buyruq qatoriga AUTOPDF yozing."
+Write-Host "AutoCAD (2021-2026) ni ishga tushiring va buyruq qatoriga AUTOPDF yozing."
 if ($PerUser) {
     Write-Host "Agar AutoCAD DLL ni yuklash haqida so'rasa - 'Всегда загружать' (Always load) ni tanlang."
 }

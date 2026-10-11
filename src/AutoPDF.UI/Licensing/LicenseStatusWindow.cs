@@ -74,7 +74,7 @@ namespace AutoPDF.UI.Licensing
             body.Children.Add(form);
 
             var valid = new TextBlock { Foreground = Palette.Muted, Margin = new Thickness(0, 8, 0, 0) };
-            valid.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("ValidUntil") { Mode = System.Windows.Data.BindingMode.OneWay, StringFormat = L.LicValidOffline + ": {0}" });
+            valid.SetBinding(TextBlock.TextProperty, Bind("ValidUntil"));
             valid.SetBinding(VisibilityProperty, VisibilityOf("ValidUntil"));
             body.Children.Add(valid);
 

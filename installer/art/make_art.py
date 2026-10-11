@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 PHOTO = os.path.join(REPO, "src", "AutoPDF.UI", "Assets", "author.jpg")
-VERSION = sys.argv[1] if len(sys.argv) > 1 else "2.2.0"
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.0.0"
 
 # Same colours as the plug-in (src/AutoPDF.UI/Theme/Ui.cs)
 HEADER_START = (0x1E, 0x3A, 0x5F)
@@ -146,7 +146,7 @@ def welcome_bitmap():
     img.paste(logo, ((w - 64) // 2, 26), logo)
     d = ImageDraw.Draw(img)
     centered_text(d, 100, "AutoPDF Pro", font(True, 17), (255, 255, 255), w)
-    centered_text(d, 124, "v" + VERSION + " · AutoCAD 2024", font(False, 10), LIGHT_BLUE, w)
+    centered_text(d, 124, "v" + VERSION + " · AutoCAD · ZWCAD", font(False, 10), LIGHT_BLUE, w)
     d.line((42, 152, w - 42, 152), fill=lerp(HEADER_START, (255, 255, 255), 0.45), width=1)
     avatar = round_photo(74, 3)
     img.paste(avatar, ((w - avatar.size[0]) // 2, 168), avatar)

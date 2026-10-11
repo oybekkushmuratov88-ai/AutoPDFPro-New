@@ -1,21 +1,27 @@
 ﻿;===========================================================================================
 ; AutoPDF Pro — single-file installer (NSIS 3, https://nsis.sourceforge.io)
 ;
-; Build the plug-in first (it assembles artifacts\AutoPDFPro.bundle), then compile this script:
+; Build the plug-ins first (they stage artifacts\AutoPDFPro.bundle and artifacts\ZWCAD\<year>), then
+; compile this script:
 ;   Windows:  "C:\Program Files (x86)\NSIS\makensis.exe" installer\AutoPDFPro.nsi
 ;   Linux:    makensis installer/AutoPDFPro.nsi
 ; build\build.ps1 and build/build.sh do both. Output: dist\AutoPDFPro-<version>-Setup.exe
 ;
-; What Setup does:
-;   * language dialog (O‘zbekcha / Русский / English); on a first installation the choice also
-;     becomes the plug-in's interface language
-;   * needs 64-bit Windows and administrator rights; warns when AutoCAD 2024 is not installed
-;   * waits until AutoCAD is closed (AutoCAD locks the DLLs)
-;   * moves other AutoPDF bundles (the old plug-in, per-user copies) to
-;     %LOCALAPPDATA%\AutoPDFPro\Backup\<date-time> so that AUTOPDF is defined only once
-;   * installs %ProgramFiles%\Autodesk\ApplicationPlugins\AutoPDFPro.bundle (trusted by SECURELOAD,
-;     loaded by every AutoCAD 2024 user of the computer)
-;   * registers an uninstaller under "Apps" / "Programs and Features"
+; One Setup, every supported CAD application — each gets the assembly built for it:
+;   AutoCAD 2021–2024 (R24, .NET Framework 4.8) and 2025–2026 (R25, .NET 8)
+;       → %ProgramFiles%\Autodesk\ApplicationPlugins\AutoPDFPro.bundle; PackageContents.xml has one
+;         component per release family, so AutoCAD's autoloader loads only the matching build.
+;   ZWCAD 2024 / 2025 / 2026 (.NET Framework; ZWCAD does not read Autodesk bundles)
+;       → %ProgramFiles%\AutoPDF Pro\ZWCAD\<year>\AutoPDF.ZWCAD.<year>.dll, registered for loading at
+;         start-up under HKLM and HKCU\SOFTWARE\ZWSOFT\ZWCAD\<year>\<language>\Applications\AutoPDFPro
+;         (LOADER, LOADCTRLS=2, MANAGED=1).
+; The components page preselects the applications found on this computer.
+;
+; Also: language dialog (O‘zbekcha / Русский / English, becomes the plug-in language on a first
+; install); 64-bit Windows and administrator rights required; waits until AutoCAD/ZWCAD are closed;
+; moves other AutoPDF bundles to %LOCALAPPDATA%\AutoPDFPro\Backup\<date-time> so that AUTOPDF is defined
+; once; registers an uninstaller under "Apps". Registration and the administrator's approval happen on
+; the first AUTOPDF (not in Setup).
 ;
 ; Silent install:  AutoPDFPro-<version>-Setup.exe /S     Silent uninstall:  Uninstall.exe /S
 ;===========================================================================================
@@ -26,22 +32,21 @@ SetCompressor /SOLID lzma
 RequestExecutionLevel admin
 
 !ifndef VERSION
-  !define VERSION "2.2.0"
+  !define VERSION "3.0.0"
 !endif
 !define PRODUCT "AutoPDF Pro"
 !define AUTHOR "Kushmuratov Oybek"
 !define COPYRIGHT_YEAR "2026"
 !define BUNDLE_NAME "AutoPDFPro.bundle"
-; The registration web app (…/exec). Registration is collected during install and sent here.
-!ifndef REG_ENDPOINT
-  !define REG_ENDPOINT "https://script.google.com/macros/s/AKfycbyBVQunkWme4m-SuCLQI3YzLdKtn0dNejhxvZIoJpitHc8DwWJMJlP39PiVIfmcvekkQA/exec"
-!endif
+!define BUNDLE_PATH "$PROGRAMFILES64\Autodesk\ApplicationPlugins\${BUNDLE_NAME}"
 ; UpgradeCode of bundle\AutoPDFPro.bundle\PackageContents.xml: identifies this product's bundle
 !define UPGRADE_CODE "1199BA7E-5919-42A7-A870-A8B38B9554FC"
 !define REG_KEY "Software\AutoPDFPro"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\AutoPDFPro"
-!ifndef BUNDLE_DIR
-  !define BUNDLE_DIR "..\artifacts\${BUNDLE_NAME}"
+!define ZW_ROOT "SOFTWARE\ZWSOFT\ZWCAD"
+!define ZW_APP "AutoPDFPro"
+!ifndef ARTIFACTS
+  !define ARTIFACTS "..\artifacts"
 !endif
 !ifndef OUTFILE
   !define OUTFILE "..\dist\AutoPDFPro-${VERSION}-Setup.exe"
@@ -49,7 +54,7 @@ RequestExecutionLevel admin
 
 Name "${PRODUCT} ${VERSION}"
 OutFile "${OUTFILE}"
-InstallDir "$PROGRAMFILES64\Autodesk\ApplicationPlugins\${BUNDLE_NAME}"
+InstallDir "$PROGRAMFILES64\AutoPDF Pro"
 BrandingText "${PRODUCT} ${VERSION} · ${AUTHOR}"
 ShowInstDetails hide
 ShowUninstDetails hide
@@ -57,19 +62,11 @@ ShowUninstDetails hide
 !include MUI2.nsh
 !include LogicLib.nsh
 !include FileFunc.nsh
+!include Sections.nsh
 !include x64.nsh
-!include nsDialogs.nsh
 
 Var BackupDir
-Var RegName
-Var RegEmail
-Var RegPhone
-Var RegConsent
-Var RegDelivered
-Var RegNameCtl
-Var RegEmailCtl
-Var RegPhoneCtl
-Var RegConsentCtl
+Var FoundCad
 
 ;-------------------------------------------------------------------------------------------
 ; Modern UI
@@ -85,20 +82,23 @@ Var RegConsentCtl
 !define MUI_FINISHPAGE_NOREBOOTSUPPORT
 !define MUI_CUSTOMFUNCTION_GUIINIT GuiInit
 
-; The language of the last installation is reused by the uninstaller and by an update.
+; The language of the last installation is reused by the uninstaller and preselected by an update.
 !define MUI_LANGDLL_REGISTRY_ROOT "HKLM"
 !define MUI_LANGDLL_REGISTRY_KEY "${REG_KEY}"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"
 !define MUI_LANGDLL_ALLLANGUAGES
 !define MUI_LANGDLL_WINDOWTITLE "${PRODUCT} ${VERSION}"
 !define MUI_LANGDLL_INFO "Tilni tanlang · Выберите язык · Select a language"
-; Always ask for the language, even on an update (do not silently reuse the saved one).
+; Always ask for the language, even on an update.
 !define MUI_LANGDLL_ALWAYSSHOW
 
 !define MUI_WELCOMEPAGE_TEXT "$(WelcomeText)"
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE WelcomeLeave
 !insertmacro MUI_PAGE_WELCOME
-Page custom RegPageCreate RegPageLeave
+!define MUI_PAGE_HEADER_TEXT "$(CompTitle)"
+!define MUI_PAGE_HEADER_SUBTEXT "$(CompSubtitle)"
+!define MUI_COMPONENTSPAGE_TEXT_TOP "$(CompTop)"
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TEXT "$(FinishText)"
 !insertmacro MUI_PAGE_FINISH
@@ -115,95 +115,71 @@ Page custom RegPageCreate RegPageLeave
 ;-------------------------------------------------------------------------------------------
 ; Texts
 
-LangString WelcomeText ${LANG_UZBEK} "Ushbu dastur kompyuteringizga $(^NameDA) plaginini o‘rnatadi. Plagin AutoCAD 2024 chizmasidagi listlarni (ramkalarni) avtomatik topadi va har birini alohida PDF faylga saqlaydi.$\r$\n$\r$\nDavom etishdan oldin AutoCAD ni yoping.$\r$\n$\r$\nMuallif: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
-LangString WelcomeText ${LANG_RUSSIAN} "Программа установит плагин $(^NameDA). Плагин автоматически находит листы (рамки) в чертеже AutoCAD 2024 и сохраняет каждый в отдельный PDF-файл.$\r$\n$\r$\nПеред продолжением закройте AutoCAD.$\r$\n$\r$\nАвтор: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
-LangString WelcomeText ${LANG_ENGLISH} "Setup will install the $(^NameDA) plug-in. It finds the sheets (frames) of an AutoCAD 2024 drawing automatically and saves each one as a separate PDF file.$\r$\n$\r$\nPlease close AutoCAD before you continue.$\r$\n$\r$\nAuthor: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
+LangString WelcomeText ${LANG_UZBEK} "Ushbu dastur kompyuteringizga $(^NameDA) plaginini o‘rnatadi. Plagin chizmadagi listlarni (ramkalarni) avtomatik topadi va har birini alohida PDF faylga saqlaydi.$\r$\n$\r$\nQo‘llab-quvvatlanadi: AutoCAD 2021–2026, ZWCAD 2024–2026.$\r$\n$\r$\nDavom etishdan oldin AutoCAD va ZWCAD ni yoping.$\r$\n$\r$\nMuallif: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
+LangString WelcomeText ${LANG_RUSSIAN} "Программа установит плагин $(^NameDA). Плагин автоматически находит листы (рамки) в чертеже и сохраняет каждый в отдельный PDF-файл.$\r$\n$\r$\nПоддерживаются: AutoCAD 2021–2026, ZWCAD 2024–2026.$\r$\n$\r$\nПеред продолжением закройте AutoCAD и ZWCAD.$\r$\n$\r$\nАвтор: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
+LangString WelcomeText ${LANG_ENGLISH} "Setup will install the $(^NameDA) plug-in. It finds the sheets (frames) of a drawing automatically and saves each one as a separate PDF file.$\r$\n$\r$\nSupported: AutoCAD 2021–2026, ZWCAD 2024–2026.$\r$\n$\r$\nPlease close AutoCAD and ZWCAD before you continue.$\r$\n$\r$\nAuthor: ${AUTHOR}$\r$\n$\r$\n$_CLICK"
 
-LangString FinishText ${LANG_UZBEK} "$(^NameDA) kompyuteringizga o‘rnatildi.$\r$\n$\r$\nQanday foydalaniladi:$\r$\n   1. AutoCAD 2024 ni ishga tushiring.$\r$\n   2. AUTOPDF buyrug‘ini kiriting (Enter).$\r$\n$\r$\nInterfeys tilini plaginning «Sozlamalar» oynasida o‘zgartirish mumkin."
-LangString FinishText ${LANG_RUSSIAN} "$(^NameDA) установлен на компьютер.$\r$\n$\r$\nКак пользоваться:$\r$\n   1. Запустите AutoCAD 2024.$\r$\n   2. Введите команду AUTOPDF (Enter).$\r$\n$\r$\nЯзык интерфейса можно изменить в окне «Настройки» плагина."
-LangString FinishText ${LANG_ENGLISH} "$(^NameDA) has been installed.$\r$\n$\r$\nHow to use it:$\r$\n   1. Start AutoCAD 2024.$\r$\n   2. Type the command AUTOPDF (Enter).$\r$\n$\r$\nThe interface language can be changed in the plug-in's Settings window."
+LangString CompTitle ${LANG_UZBEK} "Dasturlarni tanlang"
+LangString CompTitle ${LANG_RUSSIAN} "Выбор программ"
+LangString CompTitle ${LANG_ENGLISH} "Choose the applications"
+LangString CompSubtitle ${LANG_UZBEK} "Plagin qaysi CAD dasturlariga o‘rnatilsin?"
+LangString CompSubtitle ${LANG_RUSSIAN} "В какие CAD-программы установить плагин?"
+LangString CompSubtitle ${LANG_ENGLISH} "Which CAD applications should get the plug-in?"
+LangString CompTop ${LANG_UZBEK} "Bu kompyuterda topilgan dasturlar belgilangan. Har bir dastur o‘ziga mos modulni oladi."
+LangString CompTop ${LANG_RUSSIAN} "Отмечены программы, найденные на этом компьютере. Каждая получит свой модуль."
+LangString CompTop ${LANG_ENGLISH} "The applications found on this computer are selected. Each gets the module built for it."
+
+LangString DescAcad ${LANG_UZBEK} "AutoCAD 2021, 2022, 2023, 2024 (.NET Framework) va 2025, 2026 (.NET 8) — avtomatik yuklanadi."
+LangString DescAcad ${LANG_RUSSIAN} "AutoCAD 2021, 2022, 2023, 2024 (.NET Framework) и 2025, 2026 (.NET 8) — загружается автоматически."
+LangString DescAcad ${LANG_ENGLISH} "AutoCAD 2021, 2022, 2023, 2024 (.NET Framework) and 2025, 2026 (.NET 8) — loaded automatically."
+LangString DescZw ${LANG_UZBEK} "ZWCAD uchun alohida modul; ZWCAD ishga tushganda yuklanadi."
+LangString DescZw ${LANG_RUSSIAN} "Отдельный модуль для ZWCAD; загружается при запуске ZWCAD."
+LangString DescZw ${LANG_ENGLISH} "A separate module for ZWCAD; loaded when ZWCAD starts."
+
+LangString FinishText ${LANG_UZBEK} "$(^NameDA) o‘rnatildi.$\r$\n$\r$\nQanday foydalaniladi:$\r$\n   1. AutoCAD yoki ZWCAD ni ishga tushiring.$\r$\n   2. AUTOPDF buyrug‘ini kiriting (Enter).$\r$\n   3. Birinchi marta ism va e-pochtangizni kiriting — so‘rov administratorga boradi. Ruxsat berilgach (xat keladi) PDF yaratish ishlaydi.$\r$\n$\r$\nLitsenziya holati: AUTOPDFLICENSE buyrug‘i."
+LangString FinishText ${LANG_RUSSIAN} "$(^NameDA) установлен.$\r$\n$\r$\nКак пользоваться:$\r$\n   1. Запустите AutoCAD или ZWCAD.$\r$\n   2. Введите команду AUTOPDF (Enter).$\r$\n   3. При первом запуске укажите имя и e-mail — запрос уйдёт администратору. После одобрения (придёт письмо) создание PDF заработает.$\r$\n$\r$\nСтатус лицензии: команда AUTOPDFLICENSE."
+LangString FinishText ${LANG_ENGLISH} "$(^NameDA) has been installed.$\r$\n$\r$\nHow to use it:$\r$\n   1. Start AutoCAD or ZWCAD.$\r$\n   2. Type the command AUTOPDF (Enter).$\r$\n   3. The first time, enter your name and e-mail — the request goes to the administrator. Once approved (you get an e-mail), PDF creation works.$\r$\n$\r$\nLicence status: the AUTOPDFLICENSE command."
 
 ; PluginSettings.Language values (src\AutoPDF.Core\Settings\PluginSettings.cs)
 LangString PluginLanguage ${LANG_UZBEK} "Uzbek"
 LangString PluginLanguage ${LANG_RUSSIAN} "Russian"
 LangString PluginLanguage ${LANG_ENGLISH} "English"
 
-; ---- Registration page ----
-LangString RegPageTitle ${LANG_UZBEK} "Ro‘yxatdan o‘tish"
-LangString RegPageTitle ${LANG_RUSSIAN} "Регистрация"
-LangString RegPageTitle ${LANG_ENGLISH} "Registration"
-
-LangString RegPageSubtitle ${LANG_UZBEK} "Dasturdan foydalanish uchun bir marta ro‘yxatdan o‘ting"
-LangString RegPageSubtitle ${LANG_RUSSIAN} "Зарегистрируйтесь один раз, чтобы пользоваться программой"
-LangString RegPageSubtitle ${LANG_ENGLISH} "Register once to use the program"
-
-LangString RegPageIntro ${LANG_UZBEK} "AutoPDF Pro’dan foydalanish uchun ismingiz va e-pochtangizni kiriting."
-LangString RegPageIntro ${LANG_RUSSIAN} "Чтобы пользоваться AutoPDF Pro, введите имя и e-mail."
-LangString RegPageIntro ${LANG_ENGLISH} "To use AutoPDF Pro, enter your name and e-mail."
-
-LangString RegLblName ${LANG_UZBEK} "Ism-familiya:"
-LangString RegLblName ${LANG_RUSSIAN} "Имя и фамилия:"
-LangString RegLblName ${LANG_ENGLISH} "Full name:"
-
-LangString RegLblEmail ${LANG_UZBEK} "E-pochta (Gmail):"
-LangString RegLblEmail ${LANG_RUSSIAN} "Почта (Gmail):"
-LangString RegLblEmail ${LANG_ENGLISH} "E-mail (Gmail):"
-
-LangString RegLblPhone ${LANG_UZBEK} "Telefon (ixtiyoriy):"
-LangString RegLblPhone ${LANG_RUSSIAN} "Телефон (необязательно):"
-LangString RegLblPhone ${LANG_ENGLISH} "Phone (optional):"
-
-LangString RegLblConsent ${LANG_UZBEK} "Ma’lumotlarni qayta ishlash uchun yuborishga roziman."
-LangString RegLblConsent ${LANG_RUSSIAN} "Согласен(на) отправить данные для обработки."
-LangString RegLblConsent ${LANG_ENGLISH} "I agree to send the data for processing."
-
-LangString RegErrName ${LANG_UZBEK} "Ismingizni kiriting."
-LangString RegErrName ${LANG_RUSSIAN} "Введите имя."
-LangString RegErrName ${LANG_ENGLISH} "Please enter your name."
-
-LangString RegErrEmail ${LANG_UZBEK} "E-pochta manzili noto‘g‘ri."
-LangString RegErrEmail ${LANG_RUSSIAN} "Неверный адрес e-mail."
-LangString RegErrEmail ${LANG_ENGLISH} "The e-mail address is not valid."
-
-LangString RegErrConsent ${LANG_UZBEK} "Davom etish uchun rozilikni belgilang."
-LangString RegErrConsent ${LANG_RUSSIAN} "Отметьте согласие, чтобы продолжить."
-LangString RegErrConsent ${LANG_ENGLISH} "Please tick the consent box to continue."
-
-LangString RegSending ${LANG_UZBEK} "Ma’lumot yuborilmoqda…"
-LangString RegSending ${LANG_RUSSIAN} "Отправка данных…"
-LangString RegSending ${LANG_ENGLISH} "Sending…"
-
-LangString MsgNeed64Bit ${LANG_UZBEK} "$(^NameDA) faqat 64 bitli Windows da ishlaydi (AutoCAD 2024 kabi)."
-LangString MsgNeed64Bit ${LANG_RUSSIAN} "$(^NameDA) работает только в 64-разрядной Windows (как и AutoCAD 2024)."
-LangString MsgNeed64Bit ${LANG_ENGLISH} "$(^NameDA) requires 64-bit Windows (like AutoCAD 2024)."
+LangString MsgNeed64Bit ${LANG_UZBEK} "$(^NameDA) faqat 64 bitli Windows da ishlaydi."
+LangString MsgNeed64Bit ${LANG_RUSSIAN} "$(^NameDA) работает только в 64-разрядной Windows."
+LangString MsgNeed64Bit ${LANG_ENGLISH} "$(^NameDA) requires 64-bit Windows."
 
 LangString MsgNeedAdmin ${LANG_UZBEK} "O‘rnatish uchun administrator huquqlari kerak.$\r$\n$\r$\nO‘rnatish faylini sichqonchaning o‘ng tugmasi bilan bosing va «Запуск от имени администратора» (Run as administrator) ni tanlang."
 LangString MsgNeedAdmin ${LANG_RUSSIAN} "Для установки нужны права администратора.$\r$\n$\r$\nЩёлкните файл установки правой кнопкой мыши и выберите «Запуск от имени администратора»."
 LangString MsgNeedAdmin ${LANG_ENGLISH} "Administrator rights are required.$\r$\n$\r$\nRight-click the Setup file and choose $\"Run as administrator$\"."
 
-LangString MsgNoAutoCAD ${LANG_UZBEK} "Bu kompyuterda AutoCAD 2024 topilmadi.$\r$\n$\r$\n$(^NameDA) faqat AutoCAD 2024 da ishlaydi. Baribir o‘rnatilsinmi?"
-LangString MsgNoAutoCAD ${LANG_RUSSIAN} "AutoCAD 2024 на этом компьютере не найден.$\r$\n$\r$\n$(^NameDA) работает только в AutoCAD 2024. Всё равно установить?"
-LangString MsgNoAutoCAD ${LANG_ENGLISH} "AutoCAD 2024 was not found on this computer.$\r$\n$\r$\n$(^NameDA) works only with AutoCAD 2024. Install anyway?"
+LangString MsgNoCad ${LANG_UZBEK} "Bu kompyuterda AutoCAD 2021–2026 yoki ZWCAD 2024–2026 topilmadi.$\r$\n$\r$\nBaribir o‘rnatilsinmi? (Keyingi oynada dasturlarni o‘zingiz tanlaysiz.)"
+LangString MsgNoCad ${LANG_RUSSIAN} "На этом компьютере не найдены AutoCAD 2021–2026 или ZWCAD 2024–2026.$\r$\n$\r$\nВсё равно установить? (Программы можно выбрать на следующей странице.)"
+LangString MsgNoCad ${LANG_ENGLISH} "Neither AutoCAD 2021–2026 nor ZWCAD 2024–2026 was found on this computer.$\r$\n$\r$\nInstall anyway? (You choose the applications on the next page.)"
 
-LangString MsgAutoCADRunning ${LANG_UZBEK} "AutoCAD ishlab turibdi.$\r$\n$\r$\nChizmalarni saqlang, AutoCAD ni yoping va qayta urinib ko‘ring."
-LangString MsgAutoCADRunning ${LANG_RUSSIAN} "AutoCAD запущен.$\r$\n$\r$\nСохраните чертежи, закройте AutoCAD и нажмите «Повторить»."
-LangString MsgAutoCADRunning ${LANG_ENGLISH} "AutoCAD is running.$\r$\n$\r$\nSave your drawings, close AutoCAD and click Retry."
+LangString MsgCadRunning ${LANG_UZBEK} "AutoCAD yoki ZWCAD ishlab turibdi.$\r$\n$\r$\nChizmalarni saqlang, dasturni yoping va qayta urinib ko‘ring."
+LangString MsgCadRunning ${LANG_RUSSIAN} "AutoCAD или ZWCAD запущен.$\r$\n$\r$\nСохраните чертежи, закройте программу и нажмите «Повторить»."
+LangString MsgCadRunning ${LANG_ENGLISH} "AutoCAD or ZWCAD is running.$\r$\n$\r$\nSave your drawings, close the application and click Retry."
 
-LangString DetAutoCADRunning ${LANG_UZBEK} "AutoCAD yopilmadi — jarayon to‘xtatildi."
-LangString DetAutoCADRunning ${LANG_RUSSIAN} "AutoCAD не закрыт — операция прервана."
-LangString DetAutoCADRunning ${LANG_ENGLISH} "AutoCAD was not closed — cancelled."
+LangString DetCadRunning ${LANG_UZBEK} "AutoCAD/ZWCAD yopilmadi — jarayon to‘xtatildi."
+LangString DetCadRunning ${LANG_RUSSIAN} "AutoCAD/ZWCAD не закрыт — операция прервана."
+LangString DetCadRunning ${LANG_ENGLISH} "AutoCAD/ZWCAD was not closed — cancelled."
 
 LangString DetOldMoved ${LANG_UZBEK} "Eski versiya zaxiraga ko‘chirildi: "
 LangString DetOldMoved ${LANG_RUSSIAN} "Старая версия перемещена в резервную папку: "
 LangString DetOldMoved ${LANG_ENGLISH} "Older version moved to the backup folder: "
 
+LangString DetZwRegistered ${LANG_UZBEK} "ZWCAD uchun ro‘yxatga olindi: "
+LangString DetZwRegistered ${LANG_RUSSIAN} "Зарегистрировано для ZWCAD: "
+LangString DetZwRegistered ${LANG_ENGLISH} "Registered for ZWCAD: "
+
 LangString MsgOldFailed ${LANG_UZBEK} "Eski AutoPDF versiyasini ko‘chirib bo‘lmadi. Uni qo‘lda o‘chiring, aks holda AUTOPDF buyrug‘i ikki marta aniqlanadi:"
 LangString MsgOldFailed ${LANG_RUSSIAN} "Не удалось переместить старую версию AutoPDF. Удалите её вручную, иначе команда AUTOPDF будет определена дважды:"
 LangString MsgOldFailed ${LANG_ENGLISH} "An older AutoPDF version could not be moved. Please delete it manually, otherwise the AUTOPDF command is defined twice:"
 
-LangString MsgPurge ${LANG_UZBEK} "AutoPDF Pro sozlamalari, jurnallari va eski versiyalar zaxirasi ham o‘chirilsinmi?"
-LangString MsgPurge ${LANG_RUSSIAN} "Удалить также настройки, журналы и резервные копии старых версий AutoPDF Pro?"
-LangString MsgPurge ${LANG_ENGLISH} "Also delete the AutoPDF Pro settings, logs and backups of older versions?"
+LangString MsgPurge ${LANG_UZBEK} "AutoPDF Pro sozlamalari, jurnallari, litsenziya holati va eski versiyalar zaxirasi ham o‘chirilsinmi?$\r$\n$\r$\n(Litsenziya o‘chirilsa, qayta o‘rnatgandan keyin yana administrator ruxsati kerak bo‘ladi.)"
+LangString MsgPurge ${LANG_RUSSIAN} "Удалить также настройки, журналы, состояние лицензии и резервные копии старых версий AutoPDF Pro?$\r$\n$\r$\n(Без сохранённой лицензии после переустановки снова потребуется одобрение администратора.)"
+LangString MsgPurge ${LANG_ENGLISH} "Also delete the AutoPDF Pro settings, logs, licence state and backups of older versions?$\r$\n$\r$\n(Without the stored licence, a reinstall needs the administrator's approval again.)"
 
 ;-------------------------------------------------------------------------------------------
 ; File properties of Setup.exe
@@ -213,7 +189,7 @@ VIFileVersion "${VERSION}.0"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "${PRODUCT}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${VERSION}"
-VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "${PRODUCT} ${VERSION} Setup (AutoCAD 2024 plug-in)"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "${PRODUCT} ${VERSION} Setup (AutoCAD 2021-2026, ZWCAD 2024-2026)"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "CompanyName" "${AUTHOR}"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "© ${COPYRIGHT_YEAR} ${AUTHOR}. All rights reserved."
 VIAddVersionKey /LANG=${LANG_ENGLISH} "OriginalFilename" "AutoPDFPro-${VERSION}-Setup.exe"
@@ -223,6 +199,13 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "OriginalFilename" "AutoPDFPro-${VERSION}-
 ;
 ; Calling convention: arguments are pushed in order, results are popped, and every register a
 ; helper uses is restored.
+
+!macro LOCK_CHECK UN FILE
+  Push "${FILE}"
+  Call ${UN}IsFileLocked
+  Pop $0
+  IntOp $1 $1 | $0
+!macroend
 
 !macro SHARED_FUNCTIONS UN
 ; Push haystack, push needle, call, pop: 1 when the needle occurs in the haystack (case-insensitive).
@@ -256,50 +239,116 @@ Function ${UN}StrContains
   Exch $R0
 FunctionEnd
 
-; Call, pop: 1 when AutoCAD is running (acad.exe: AutoCAD and every AutoCAD 2024 based product)
-; or when the installed plug-in DLL is locked, else 0. AutoCAD locks the plug-in's DLLs.
-Function ${UN}IsAutoCADRunning
+; Push an image name, call, pop: 1 when a process with that image name runs.
+Function ${UN}IsProcessRunning
+  Exch $R0
+  Push $R1
+  ; With the filter tasklist prints only matching lines, or a (localized) "no tasks" message.
+  nsExec::ExecToStack '"$SYSDIR\tasklist.exe" /NH /FO CSV /FI "IMAGENAME eq $R0"'
+  Pop $R1
+  Pop $R1
+  Push $R1
+  Push $R0
+  Call ${UN}StrContains
+  Pop $R0
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+; Push a file, call, pop: 1 when the file exists and cannot be opened for writing (a CAD has loaded it).
+Function ${UN}IsFileLocked
+  Exch $R0
+  Push $R1
+  ${If} ${FileExists} $R0
+    ClearErrors
+    FileOpen $R1 $R0 a
+    ${If} ${Errors}
+      StrCpy $R0 1
+    ${Else}
+      FileClose $R1
+      StrCpy $R0 0
+    ${EndIf}
+  ${Else}
+    StrCpy $R0 0
+  ${EndIf}
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+; Call, pop: 1 when AutoCAD (acad.exe, also its verticals) or ZWCAD runs, or one of our DLLs is locked.
+Function ${UN}IsCadRunning
   Push $0
   Push $1
-  ; With the filter tasklist prints only acad.exe lines, or a (localized) "no tasks" message.
-  nsExec::ExecToStack '"$SYSDIR\tasklist.exe" /NH /FO CSV /FI "IMAGENAME eq acad.exe"'
-  Pop $0
-  Pop $0
-  Push $0
+  StrCpy $1 0
   Push "acad.exe"
-  Call ${UN}StrContains
-  Pop $1
-  ${If} $1 = 0
-  ${AndIf} ${FileExists} "$INSTDIR\Contents\Windows\2024\AutoPDF.AutoCAD.dll"
-    ClearErrors
-    FileOpen $0 "$INSTDIR\Contents\Windows\2024\AutoPDF.AutoCAD.dll" a
-    ${If} ${Errors}
-      StrCpy $1 1
-    ${Else}
-      FileClose $0
-    ${EndIf}
-  ${EndIf}
+  Call ${UN}IsProcessRunning
+  Pop $0
+  IntOp $1 $1 | $0
+  Push "ZWCAD.exe"
+  Call ${UN}IsProcessRunning
+  Pop $0
+  IntOp $1 $1 | $0
+  !insertmacro LOCK_CHECK "${UN}" "${BUNDLE_PATH}\Contents\Windows\R24\AutoPDF.AutoCAD.dll"
+  !insertmacro LOCK_CHECK "${UN}" "${BUNDLE_PATH}\Contents\Windows\R25\AutoPDF.AutoCAD.R25.dll"
+  !insertmacro LOCK_CHECK "${UN}" "${BUNDLE_PATH}\Contents\Windows\2024\AutoPDF.AutoCAD.dll"
+  !insertmacro LOCK_CHECK "${UN}" "$INSTDIR\ZWCAD\2024\AutoPDF.ZWCAD.2024.dll"
+  !insertmacro LOCK_CHECK "${UN}" "$INSTDIR\ZWCAD\2025\AutoPDF.ZWCAD.2025.dll"
+  !insertmacro LOCK_CHECK "${UN}" "$INSTDIR\ZWCAD\2026\AutoPDF.ZWCAD.2026.dll"
   StrCpy $0 $1
   Pop $1
   Exch $0
 FunctionEnd
 
-; Call, pop: "ok" once AutoCAD is closed, "cancel" when the user gives up.
-Function ${UN}WaitForAutoCAD
+; Call, pop: "ok" once AutoCAD/ZWCAD are closed, "cancel" when the user gives up.
+Function ${UN}WaitForCad
   Push $0
   ${Do}
-    Call ${UN}IsAutoCADRunning
+    Call ${UN}IsCadRunning
     Pop $0
     ${If} $0 = 0
       StrCpy $0 "ok"
       ${ExitDo}
     ${EndIf}
-    ${If} ${Cmd} `MessageBox MB_ICONEXCLAMATION|MB_RETRYCANCEL "$(MsgAutoCADRunning)" /SD IDCANCEL IDCANCEL`
+    ${If} ${Cmd} `MessageBox MB_ICONEXCLAMATION|MB_RETRYCANCEL "$(MsgCadRunning)" /SD IDCANCEL IDCANCEL`
       StrCpy $0 "cancel"
       ${ExitDo}
     ${EndIf}
   ${Loop}
   Exch $0
+FunctionEnd
+
+; Push a ZWCAD year, call: removes our start-up registration from every language profile (HKLM + HKCU).
+Function ${UN}UnregisterZwcad
+  Exch $R0
+  Push $R1
+  Push $R2
+  StrCpy $R1 0
+  ${Do}
+    ClearErrors
+    EnumRegKey $R2 HKLM "${ZW_ROOT}\$R0" $R1
+    ${If} ${Errors}
+    ${OrIf} $R2 == ""
+      ${ExitDo}
+    ${EndIf}
+    DeleteRegKey HKLM "${ZW_ROOT}\$R0\$R2\Applications\${ZW_APP}"
+    DeleteRegKey /ifempty HKLM "${ZW_ROOT}\$R0\$R2\Applications"
+    IntOp $R1 $R1 + 1
+  ${Loop}
+  StrCpy $R1 0
+  ${Do}
+    ClearErrors
+    EnumRegKey $R2 HKCU "${ZW_ROOT}\$R0" $R1
+    ${If} ${Errors}
+    ${OrIf} $R2 == ""
+      ${ExitDo}
+    ${EndIf}
+    DeleteRegKey HKCU "${ZW_ROOT}\$R0\$R2\Applications\${ZW_APP}"
+    DeleteRegKey /ifempty HKCU "${ZW_ROOT}\$R0\$R2\Applications"
+    IntOp $R1 $R1 + 1
+  ${Loop}
+  Pop $R2
+  Pop $R1
+  Pop $R0
 FunctionEnd
 !macroend
 !insertmacro SHARED_FUNCTIONS ""
@@ -389,8 +438,8 @@ Function MoveToBackup
 FunctionEnd
 
 ; Push an ApplicationPlugins folder, push a name for its backup subfolder, call: every AutoPDF bundle
-; in the folder, except this installation's own bundle (updated in place), is moved to
-; $BackupDir\<name>, so AutoCAD never loads two AUTOPDF commands.
+; in the folder, except this product's own bundle (replaced in place), is moved to $BackupDir\<name>,
+; so AutoCAD never loads two AUTOPDF commands.
 Function BackupOtherBundles
   Exch $R1
   Exch
@@ -410,7 +459,7 @@ Function BackupOtherBundles
         Pop $R5
         ${If} $R5 = 1
           StrCpy $R5 0
-          ${If} $R4 == $INSTDIR
+          ${If} $R4 == "${BUNDLE_PATH}"
             Push "$R4\PackageContents.xml"
             Push "${UPGRADE_CODE}"
             Call FileContains
@@ -436,114 +485,193 @@ Function BackupOtherBundles
 FunctionEnd
 
 ;-------------------------------------------------------------------------------------------
-; Installer
+; Host detection and ZWCAD registration
+
+; Push a registry path below HKLM, call, pop: 1 when it exists and has at least one subkey.
+Function HasKey
+  Exch $R0
+  Push $R1
+  ClearErrors
+  EnumRegKey $R1 HKLM $R0 0
+  ${If} ${Errors}
+  ${OrIf} $R1 == ""
+    StrCpy $R0 0
+  ${Else}
+    StrCpy $R0 1
+  ${EndIf}
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+!macro ZW_WRITE ROOT KEY
+  WriteRegStr ${ROOT} "${KEY}" "DESCRIPTION" "${PRODUCT} ${VERSION} (AUTOPDF)"
+  WriteRegStr ${ROOT} "${KEY}" "LOADER" "$R1"
+  WriteRegDWORD ${ROOT} "${KEY}" "LOADCTRLS" 2
+  WriteRegDWORD ${ROOT} "${KEY}" "MANAGED" 1
+!macroend
+
+; Push a ZWCAD year, push the DLL path, call: registers the DLL for loading at start-up in every
+; language profile of that ZWCAD (HKLM for all users, HKCU for the current one).
+Function RegisterZwcad
+  Exch $R1
+  Exch
+  Exch $R0
+  Push $R2
+  Push $R3
+  StrCpy $R2 0
+  ${Do}
+    ClearErrors
+    EnumRegKey $R3 HKLM "${ZW_ROOT}\$R0" $R2
+    ${If} ${Errors}
+    ${OrIf} $R3 == ""
+      ${ExitDo}
+    ${EndIf}
+    !insertmacro ZW_WRITE HKLM "${ZW_ROOT}\$R0\$R3\Applications\${ZW_APP}"
+    !insertmacro ZW_WRITE HKCU "${ZW_ROOT}\$R0\$R3\Applications\${ZW_APP}"
+    DetailPrint "$(DetZwRegistered)ZWCAD $R0 ($R3)"
+    IntOp $R2 $R2 + 1
+  ${Loop}
+  Pop $R3
+  Pop $R2
+  Pop $R0
+  Pop $R1
+FunctionEnd
+
+!macro ACAD_RELEASE RELEASE
+  Push "SOFTWARE\Autodesk\AutoCAD\${RELEASE}"
+  Call HasKey
+  Pop $0
+  IntOp $1 $1 | $0
+!macroend
+
+!macro ZW_DETECT YEAR SECTION
+  Push "${ZW_ROOT}\${YEAR}"
+  Call HasKey
+  Pop $0
+  ${If} $0 = 0
+    !insertmacro UnselectSection ${SECTION}
+  ${Else}
+    StrCpy $FoundCad 1
+  ${EndIf}
+!macroend
 
 ;-------------------------------------------------------------------------------------------
-; Registration page (shown during install; skipped in silent mode)
+; Installer sections
 
-Function RegPageCreate
-  !insertmacro MUI_HEADER_TEXT "$(RegPageTitle)" "$(RegPageSubtitle)"
-  nsDialogs::Create 1018
+Section "-Prepare" SecPrepare
+  Call WaitForCad
   Pop $0
-  ${If} $0 == error
+  ${If} $0 != "ok"
+    DetailPrint "$(DetCadRunning)"
     Abort
   ${EndIf}
 
-  ${NSD_CreateLabel} 0 0 100% 22u "$(RegPageIntro)"
-  Pop $0
+  ; Other AutoPDF bundles -> %LOCALAPPDATA%\AutoPDFPro\Backup\<date-time>
+  SetShellVarContext current
+  ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
+  StrCpy $BackupDir "$LOCALAPPDATA\AutoPDFPro\Backup\$2$1$0-$4$5$6"
+  Push "$PROGRAMFILES64\Autodesk\ApplicationPlugins"
+  Push "ProgramFiles"
+  Call BackupOtherBundles
+  SetShellVarContext all
+  Push "$APPDATA\Autodesk\ApplicationPlugins"
+  SetShellVarContext current
+  Push "ProgramData"
+  Call BackupOtherBundles
+  Push "$APPDATA\Autodesk\ApplicationPlugins"
+  Push "AppData"
+  Call BackupOtherBundles
 
-  ${NSD_CreateLabel} 0 30u 35% 12u "$(RegLblName)"
-  Pop $0
-  ${NSD_CreateText} 37% 28u 61% 13u "$RegName"
-  Pop $RegNameCtl
+  ; This product's earlier files (2.x kept its uninstaller inside the bundle) and ZWCAD registrations.
+  RMDir /r "${BUNDLE_PATH}"
+  RMDir /r "$INSTDIR\ZWCAD"
+  Push "2024"
+  Call UnregisterZwcad
+  Push "2025"
+  Call UnregisterZwcad
+  Push "2026"
+  Call UnregisterZwcad
+SectionEnd
 
-  ${NSD_CreateLabel} 0 48u 35% 12u "$(RegLblEmail)"
-  Pop $0
-  ${NSD_CreateText} 37% 46u 61% 13u "$RegEmail"
-  Pop $RegEmailCtl
+Section "AutoCAD 2021–2026" SecAcad
+  SetOutPath "${BUNDLE_PATH}"
+  File "${ARTIFACTS}\${BUNDLE_NAME}\PackageContents.xml"
+  SetOutPath "${BUNDLE_PATH}\Contents\Windows\R24"
+  File "${ARTIFACTS}\${BUNDLE_NAME}\Contents\Windows\R24\*.dll"
+  SetOutPath "${BUNDLE_PATH}\Contents\Windows\R25"
+  File "${ARTIFACTS}\${BUNDLE_NAME}\Contents\Windows\R25\*.dll"
+SectionEnd
 
-  ${NSD_CreateLabel} 0 66u 35% 12u "$(RegLblPhone)"
-  Pop $0
-  ${NSD_CreateText} 37% 64u 61% 13u "$RegPhone"
-  Pop $RegPhoneCtl
+!macro ZW_SECTION YEAR SECTION_ID
+Section "ZWCAD ${YEAR}" ${SECTION_ID}
+  SetOutPath "$INSTDIR\ZWCAD\${YEAR}"
+  File "${ARTIFACTS}\ZWCAD\${YEAR}\*.dll"
+  Push "${YEAR}"
+  Push "$INSTDIR\ZWCAD\${YEAR}\AutoPDF.ZWCAD.${YEAR}.dll"
+  Call RegisterZwcad
+SectionEnd
+!macroend
+!insertmacro ZW_SECTION "2024" SecZw2024
+!insertmacro ZW_SECTION "2025" SecZw2025
+!insertmacro ZW_SECTION "2026" SecZw2026
 
-  ${NSD_CreateCheckbox} 0 90u 100% 22u "$(RegLblConsent)"
-  Pop $RegConsentCtl
-  ${If} $RegConsent == 1
-    ${NSD_Check} $RegConsentCtl
+Section "-Finish" SecFinish
+  SetOutPath "$INSTDIR"
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
+
+  WriteRegStr HKLM "${REG_KEY}" "Version" "${VERSION}"
+  WriteRegStr HKLM "${REG_KEY}" "InstallDir" "$INSTDIR"
+  WriteRegStr HKLM "${REG_KEY}" "BundleDir" "${BUNDLE_PATH}"
+  ; 2.x stored the installer-time registration here; registration now lives in the plug-in.
+  DeleteRegValue HKLM "${REG_KEY}" "Registered"
+  DeleteRegValue HKLM "${REG_KEY}" "RegName"
+  DeleteRegValue HKLM "${REG_KEY}" "RegEmail"
+  DeleteRegValue HKLM "${REG_KEY}" "RegPhone"
+  DeleteRegValue HKLM "${REG_KEY}" "RegDelivered"
+  DeleteRegValue HKLM "${REG_KEY}" "RegAtUtc"
+
+  WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${PRODUCT} (AutoCAD, ZWCAD)"
+  WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${AUTHOR}"
+  WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\Uninstall.exe,0"
+  WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
+  WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "${UNINST_KEY}" "Comments" "AUTOPDF: sheets -> PDF for AutoCAD 2021-2026 and ZWCAD 2024-2026"
+  WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
+  WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  StrCpy $3 0
+  ${If} ${FileExists} "${BUNDLE_PATH}\*.*"
+    ${GetSize} "${BUNDLE_PATH}" "/S=0K" $3 $1 $2
   ${EndIf}
+  IntOp $0 $0 + $3
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" "$0"
 
-  nsDialogs::Show
-FunctionEnd
-
-Function RegPageLeave
-  ${NSD_GetText} $RegNameCtl $RegName
-  ${NSD_GetText} $RegEmailCtl $RegEmail
-  ${NSD_GetText} $RegPhoneCtl $RegPhone
-  ${NSD_GetState} $RegConsentCtl $RegConsent
-
-  ${If} $RegName == ""
-    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrName)"
-    Abort
-  ${EndIf}
-  Call ValidateEmail
-  ${If} $0 != 1
-    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrEmail)"
-    Abort
-  ${EndIf}
-  ${If} $RegConsent != 1
-    MessageBox MB_ICONEXCLAMATION|MB_OK "$(RegErrConsent)"
-    Abort
-  ${EndIf}
-
-  Call SubmitRegistration
-FunctionEnd
-
-; $0 = 1 when $RegEmail looks like an address (contains "@" and "."). A typo check only;
-; the real validation happens in the plug-in and on the server.
-Function ValidateEmail
-  Push $1
-  Push $2
-  StrCpy $0 0
-  StrLen $1 $RegEmail
-  ${If} $1 > 4
-    Push $RegEmail
-    Push "@"
-    Call StrContains
-    Pop $2
-    ${If} $2 == 1
-      Push $RegEmail
-      Push "."
-      Call StrContains
-      Pop $2
-      ${If} $2 == 1
-        StrCpy $0 1
-      ${EndIf}
+  ; First installation: the plug-in starts in the language chosen for Setup.
+  ; An existing settings file (the user's own choices) is never touched.
+  SetShellVarContext current
+  ${IfNot} ${FileExists} "$APPDATA\AutoPDFPro\settings.xml"
+    CreateDirectory "$APPDATA\AutoPDFPro"
+    ClearErrors
+    FileOpen $0 "$APPDATA\AutoPDFPro\settings.xml" w
+    ${IfNot} ${Errors}
+      FileWrite $0 '<?xml version="1.0" encoding="utf-8"?>$\r$\n<AutoPdfSettings>$\r$\n  <Language>$(PluginLanguage)</Language>$\r$\n</AutoPdfSettings>$\r$\n'
+      FileClose $0
     ${EndIf}
   ${EndIf}
-  Pop $2
-  Pop $1
-FunctionEnd
+SectionEnd
 
-; Sends the registration to the web app with PowerShell (values via environment variables, so no
-; quoting problems). $RegDelivered = 1 on success. A failure is not fatal: the machine is still marked
-; registered and the plug-in re-sends the details on a later run.
-Function SubmitRegistration
-  StrCpy $RegDelivered 0
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_URL", t "${REG_ENDPOINT}")'
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_NAME", t "$RegName")'
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_EMAIL", t "$RegEmail")'
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_PHONE", t "$RegPhone")'
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_VER", t "${VERSION}")'
-  System::Call 'kernel32::SetEnvironmentVariable(t "APDF_LANG", t "$(PluginLanguage)")'
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecAcad} "$(DescAcad)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecZw2024} "$(DescZw)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecZw2025} "$(DescZw)"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecZw2026} "$(DescZw)"
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
-  DetailPrint "$(RegSending)"
-  nsExec::Exec "powershell -NoProfile -ExecutionPolicy Bypass -Command $\"try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $$b=@{action='register';name=$$env:APDF_NAME;email=$$env:APDF_EMAIL;phone=$$env:APDF_PHONE;computer=$$env:COMPUTERNAME;user=$$env:USERNAME;version=$$env:APDF_VER;lang=$$env:APDF_LANG}; $$r=Invoke-RestMethod -Method Post -Uri $$env:APDF_URL -Body $$b -TimeoutSec 12; if ($$r -match 'OK') { exit 0 } else { exit 2 } } catch { exit 3 }$\""
-  Pop $0
-  ${If} $0 == "0"
-    StrCpy $RegDelivered 1
-  ${EndIf}
-FunctionEnd
+;-------------------------------------------------------------------------------------------
+; Installer functions (after the sections, which they reference)
 
 Function .onInit
   SetRegView 64
@@ -552,9 +680,39 @@ Function .onInit
   StrCpy $LANGUAGE ${LANG_UZBEK}
   !insertmacro MUI_LANGDLL_DISPLAY
 
+  Call SelectDetectedHosts
+
   ; A silent installation has no GUI, so its checks run here (their messages are not shown).
   ${If} ${Silent}
     Call StartupChecks
+  ${EndIf}
+FunctionEnd
+
+; Preselects the components of the CAD applications found on this computer (all when none is found).
+Function SelectDetectedHosts
+  StrCpy $FoundCad 0
+  StrCpy $1 0
+  !insertmacro ACAD_RELEASE "R24.0"
+  !insertmacro ACAD_RELEASE "R24.1"
+  !insertmacro ACAD_RELEASE "R24.2"
+  !insertmacro ACAD_RELEASE "R24.3"
+  !insertmacro ACAD_RELEASE "R25.0"
+  !insertmacro ACAD_RELEASE "R25.1"
+  ${If} $1 = 0
+    !insertmacro UnselectSection ${SecAcad}
+  ${Else}
+    StrCpy $FoundCad 1
+  ${EndIf}
+  !insertmacro ZW_DETECT "2024" ${SecZw2024}
+  !insertmacro ZW_DETECT "2025" ${SecZw2025}
+  !insertmacro ZW_DETECT "2026" ${SecZw2026}
+
+  ${If} $FoundCad = 0
+    ; Nothing found (e.g. the CAD is installed later): offer everything.
+    !insertmacro SelectSection ${SecAcad}
+    !insertmacro SelectSection ${SecZw2024}
+    !insertmacro SelectSection ${SecZw2025}
+    !insertmacro SelectSection ${SecZw2026}
   ${EndIf}
 FunctionEnd
 
@@ -579,12 +737,8 @@ Function StartupChecks
     Quit
   ${EndIf}
 
-  ; AutoCAD 2024 is release R24.3; AutoCAD and its 2024 verticals register below this key.
-  ClearErrors
-  EnumRegKey $0 HKLM "SOFTWARE\Autodesk\AutoCAD\R24.3" 0
-  ${If} ${Errors}
-  ${OrIf} $0 == ""
-    ${If} ${Cmd} `MessageBox MB_ICONEXCLAMATION|MB_YESNO|MB_DEFBUTTON2 "$(MsgNoAutoCAD)" /SD IDYES IDNO`
+  ${If} $FoundCad = 0
+    ${If} ${Cmd} `MessageBox MB_ICONEXCLAMATION|MB_YESNO|MB_DEFBUTTON2 "$(MsgNoCad)" /SD IDYES IDNO`
       SetErrorLevel 1
       Quit
     ${EndIf}
@@ -592,95 +746,12 @@ Function StartupChecks
 FunctionEnd
 
 Function WelcomeLeave
-  Call WaitForAutoCAD
+  Call WaitForCad
   Pop $0
   ${If} $0 != "ok"
     Abort
   ${EndIf}
 FunctionEnd
-
-Section "AutoPDF Pro" SecMain
-  SectionIn RO
-
-  Call WaitForAutoCAD
-  Pop $0
-  ${If} $0 != "ok"
-    DetailPrint "$(DetAutoCADRunning)"
-    Abort
-  ${EndIf}
-
-  ; Other AutoPDF bundles -> %LOCALAPPDATA%\AutoPDFPro\Backup\<date-time>
-  SetShellVarContext current
-  ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
-  StrCpy $BackupDir "$LOCALAPPDATA\AutoPDFPro\Backup\$2$1$0-$4$5$6"
-  Push "$PROGRAMFILES64\Autodesk\ApplicationPlugins"
-  Push "ProgramFiles"
-  Call BackupOtherBundles
-  SetShellVarContext all
-  Push "$APPDATA\Autodesk\ApplicationPlugins"
-  SetShellVarContext current
-  Push "ProgramData"
-  Call BackupOtherBundles
-  Push "$APPDATA\Autodesk\ApplicationPlugins"
-  Push "AppData"
-  Call BackupOtherBundles
-
-  ; Files of an earlier installation of this bundle
-  RMDir /r "$INSTDIR\Contents"
-
-  SetOutPath "$INSTDIR"
-  File "${BUNDLE_DIR}\PackageContents.xml"
-  SetOutPath "$INSTDIR\Contents\Windows\2024"
-  File "${BUNDLE_DIR}\Contents\Windows\2024\AutoPDF.AutoCAD.dll"
-  File "${BUNDLE_DIR}\Contents\Windows\2024\AutoPDF.Core.dll"
-  File "${BUNDLE_DIR}\Contents\Windows\2024\AutoPDF.UI.dll"
-  File "${BUNDLE_DIR}\Contents\Windows\2024\PdfSharp.dll"
-  SetOutPath "$INSTDIR"
-
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
-
-  WriteRegStr HKLM "${REG_KEY}" "Version" "${VERSION}"
-  WriteRegStr HKLM "${REG_KEY}" "InstallDir" "$INSTDIR"
-
-  ; Machine-wide registration marker. The plug-in reads it and runs AUTOPDF straight away.
-  ; Only written when the registration page ran (i.e. not for a silent /S install).
-  ${If} $RegConsent == 1
-    WriteRegDWORD HKLM "${REG_KEY}" "Registered" 1
-    WriteRegStr HKLM "${REG_KEY}" "RegName" "$RegName"
-    WriteRegStr HKLM "${REG_KEY}" "RegEmail" "$RegEmail"
-    WriteRegStr HKLM "${REG_KEY}" "RegPhone" "$RegPhone"
-    WriteRegDWORD HKLM "${REG_KEY}" "RegDelivered" "$RegDelivered"
-    ${GetTime} "" "L" $0 $1 $2 $3 $4 $5 $6
-    WriteRegStr HKLM "${REG_KEY}" "RegAtUtc" "$2-$1-$0 $4:$5"
-  ${EndIf}
-
-  WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${PRODUCT} (AutoCAD 2024)"
-  WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${AUTHOR}"
-  WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\Uninstall.exe,0"
-  WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-  WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
-  WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "${UNINST_KEY}" "Comments" "AUTOPDF: AutoCAD 2024 sheets -> PDF"
-  WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
-  WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
-  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
-  IntFmt $0 "0x%08X" $0
-  WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" "$0"
-
-  ; First installation: the plug-in starts in the language chosen for Setup.
-  ; An existing settings file (the user's own choices) is never touched.
-  SetShellVarContext current
-  ${IfNot} ${FileExists} "$APPDATA\AutoPDFPro\settings.xml"
-    CreateDirectory "$APPDATA\AutoPDFPro"
-    ClearErrors
-    FileOpen $0 "$APPDATA\AutoPDFPro\settings.xml" w
-    ${IfNot} ${Errors}
-      FileWrite $0 '<?xml version="1.0" encoding="utf-8"?>$\r$\n<AutoPdfSettings>$\r$\n  <Language>$(PluginLanguage)</Language>$\r$\n</AutoPdfSettings>$\r$\n'
-      FileClose $0
-    ${EndIf}
-  ${EndIf}
-SectionEnd
 
 ;-------------------------------------------------------------------------------------------
 ; Uninstaller
@@ -691,22 +762,25 @@ Function un.onInit
 FunctionEnd
 
 Section "Uninstall"
-  Call un.WaitForAutoCAD
+  Call un.WaitForCad
   Pop $0
   ${If} $0 != "ok"
-    DetailPrint "$(DetAutoCADRunning)"
+    DetailPrint "$(DetCadRunning)"
     Abort
   ${EndIf}
 
-  ; Only this bundle's own files; the folder itself goes when it is empty.
-  Delete "$INSTDIR\Contents\Windows\2024\AutoPDF.AutoCAD.dll"
-  Delete "$INSTDIR\Contents\Windows\2024\AutoPDF.Core.dll"
-  Delete "$INSTDIR\Contents\Windows\2024\AutoPDF.UI.dll"
-  Delete "$INSTDIR\Contents\Windows\2024\PdfSharp.dll"
-  RMDir "$INSTDIR\Contents\Windows\2024"
-  RMDir "$INSTDIR\Contents\Windows"
-  RMDir "$INSTDIR\Contents"
-  Delete "$INSTDIR\PackageContents.xml"
+  ; The AutoCAD bundle is this product's own folder (named after it): remove it completely.
+  ${If} ${FileExists} "${BUNDLE_PATH}\PackageContents.xml"
+    RMDir /r "${BUNDLE_PATH}"
+  ${EndIf}
+
+  Push "2024"
+  Call un.UnregisterZwcad
+  Push "2025"
+  Call un.UnregisterZwcad
+  Push "2026"
+  Call un.UnregisterZwcad
+  RMDir /r "$INSTDIR\ZWCAD"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
 

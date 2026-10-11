@@ -399,6 +399,19 @@ namespace AutoPDF.Core.Tests
             Assert.Null(Store.Load().InstallId);
         }
 
+        [Fact]
+        public void Store_FileBeingWrittenByAnotherProcess_IsNeverMistakenForNoLicence()
+        {
+            LicenseManager m = Manager();
+            string id = m.Register("Ali", "ali@example.com", Client).InstallId;
+            using (new FileStream(Store.FilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                Assert.ThrowsAny<IOException>(() => m.Evaluate());
+            }
+            Assert.Equal(id, m.Evaluate().InstallId); // identity and registration kept
+            Assert.Equal(LicenseState.Pending, m.Evaluate().State);
+        }
+
         // ---- HTTP client -------------------------------------------------------------------------------------
 
         [Fact]

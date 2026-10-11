@@ -58,7 +58,7 @@ Setting *Plot usuli → Faqat -PLOT buyrug‘i* forces the fallback for testing;
             -Target "C:\src\AutoPDFPro-New\artifacts\AutoPDFPro.bundle"
    ```
    (close AutoCAD before rebuilding — it locks the DLLs).
-3. Set **AutoPDF.AutoCAD** as start-up project and pick the launch profile *AutoCAD 2024*
+3. Set **AutoPDF.AutoCAD** (AutoCAD 2021–2024), **AutoPDF.AutoCAD.R25** (2025–2026) or an **AutoPDF.ZWCAD.<year>** project as start-up project and pick the launch profile, e.g. *AutoCAD 2024*
    (`Properties\launchSettings.json` starts `acad.exe /nologo`). Adjust the path if AutoCAD is installed
    elsewhere.
    Alternative without the bundle: profile *AutoCAD 2024 (NETLOAD, no bundle)* runs
@@ -105,35 +105,34 @@ sheet and may lock the file while the next sheet is written. Turn it off for bat
 
 | | |
 |---|---|
-| Files | `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` (manifest, 4 DLLs, `Uninstall.exe`) |
-| Registry | `HKLM\Software\AutoPDFPro` (`Version`, `InstallDir`, `InstallerLanguage`), `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\AutoPDFPro` |
+| AutoCAD files | `C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` (manifest, `Contents\Windows\R24\*.dll`, `Contents\Windows\R25\*.dll`) |
+| ZWCAD files | `C:\Program Files\AutoPDF Pro\ZWCAD\<year>\*.dll`; `C:\Program Files\AutoPDF Pro\Uninstall.exe` |
+| ZWCAD registration | `HKLM` and `HKCU\SOFTWARE\ZWSOFT\ZWCAD\<year>\<language>\Applications\AutoPDFPro` (`LOADER`, `LOADCTRLS=2`, `MANAGED=1`, `DESCRIPTION`) for every language profile of each selected year |
+| Registry | `HKLM\Software\AutoPDFPro` (`Version`, `InstallDir`, `BundleDir`, `InstallerLanguage`), `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\AutoPDFPro`. The 2.x registration values (`Registered`, `RegName`, `RegEmail` …) are deleted. |
 | Other AutoPDF bundles | Every `*.bundle` in the three ApplicationPlugins folders whose `PackageContents.xml` mentions AutoPDF (except this product's own bundle, found by its UpgradeCode) → `%LOCALAPPDATA%\AutoPDFPro\Backup\<date-time>\` + `ProgramFiles`, `ProgramData` or `AppData` |
 | Plug-in language | First installation only: `%APPDATA%\AutoPDFPro\settings.xml` with `<Language>` = language chosen for Setup (an existing file is never changed) |
-| AutoCAD 2024 present? | Any subkey of `HKLM\SOFTWARE\Autodesk\AutoCAD\R24.3` (otherwise: warning, install anyway = Yes/No) |
-| AutoCAD running? | `tasklist /FI "IMAGENAME eq acad.exe"`, or the installed `AutoPDF.AutoCAD.dll` cannot be opened for writing |
+| Which components are preselected | AutoCAD: any subkey of `HKLM\SOFTWARE\Autodesk\AutoCAD\R24.0` … `R25.1`; ZWCAD <year>: any subkey of `HKLM\SOFTWARE\ZWSOFT\ZWCAD\<year>`. Nothing found → warning, everything preselected. |
+| CAD running? | `tasklist` for `acad.exe` and `ZWCAD.exe`, or one of the installed plug-in DLLs cannot be opened for writing |
 
-Command line: `/S` = silent (no questions: AutoCAD 2024 missing → installs anyway; AutoCAD running → stops).
-Exit codes: `0` installed, `1` cancelled by the user (also: AutoCAD 2024 missing → *No*), `2` stopped (AutoCAD still running), `3` not 64-bit
+Command line: `/S` = silent (installs the detected components; nothing detected → everything; a CAD running →
+stops). Exit codes: `0` installed, `1` cancelled by the user, `2` stopped (CAD still running), `3` not 64-bit
 Windows, `740` no administrator rights. The uninstaller runs a copy of itself from `%TEMP%`, so for its exit code
-use `Uninstall.exe /S _?=C:\Program Files\Autodesk\ApplicationPlugins\AutoPDFPro.bundle` (no quotes).
+use `Uninstall.exe /S _?=C:\Program Files\AutoPDF Pro` (no quotes).
 
-Testing without Windows: the wizard and the silent install/uninstall can be run in Wine. If only 64-bit Wine is
-available, compile a 64-bit test build of the same script:
-`makensis "-XTarget amd64-unicode" -DOUTFILE=/tmp/Setup-x64.exe installer/AutoPDFPro.nsi`
-(release builds use the standard 32-bit stub, which runs on every 64-bit Windows).
+Testing without Windows: see [TESTING.md](TESTING.md#installer-under-wine-linux).
 
-## 9. Registration (if switched on)
+## 9. Licence (registration and approval)
 
-Registration is off unless the author has set `RegistrationConfig.Endpoint` to a Google Apps Script web-app
-URL (see [REGISTRATION.md](REGISTRATION.md)). When it is on:
-
-* The machine's registration is stored in `%APPDATA%\AutoPDFPro\registration.xml`
-  (`Delivered=false` means it has not reached the server yet — it is re-sent on the next `AUTOPDF`).
-* `AUTOPDFADMIN` opens the user list; it asks for the admin key, which the server checks. `AdminForbidden`
-  ("Wrong key") means the key does not match the `ADMIN_KEY` in the deployed `Code.gs`.
-* Health check: open the `/exec` URL in a browser — it must print `OK`. `…/exec?action=list&key=<ADMIN_KEY>`
-  prints the users as tab-separated rows.
-* No e-mail arriving: check the author's Gmail spam folder and that `NOTIFY_EMAIL` in `Code.gs` is correct;
-  after editing `Code.gs`, redeploy (*Manage deployments → Edit → New version → Deploy*).
-* To test the windows without AutoCAD: `AutoPDF.UiDemo.exe --demo register` (add `--fail` for the offline
-  path) and `AutoPDF.UiDemo.exe --demo users`.
+* State file: `%LOCALAPPDATA%\AutoPDFPro\license.txt` (installation ID, status, signed token). Deleting it
+  starts over with a new installation ID (needs a new approval).
+* `AUTOPDFLICENSE` shows the installation ID, the status, the last contact with the server and the offline
+  validity; *Check now* asks the server.
+* Log lines start with `Licence:` (state at each `AUTOPDF`, registration sent, checks, decisions).
+* "Unexpected reply from the licence server" — the web app is not deployed for *Anyone*, or the URL is wrong.
+  Open the `/exec` URL in a browser: it must say *AutoPDF Pro licence server is running.*
+* Approved in the sheet but the plug-in says *Not verified* — the server has no signing key yet
+  (*AutoPDF ▸ Generate signing keys*), then *Check now*.
+* Server side: the **Log** sheet lists every request and decision; *AutoPDF ▸ Check configuration* checks the
+  setup. Details: [LICENSING.md](LICENSING.md), [server/licensing/README.md](../server/licensing/README.md).
+* To see the windows without CAD: `AutoPDF.UiDemo.exe --demo register` (add `--fail` for "no internet"),
+  `--demo pending` (approves on the second check), `--demo rejected|expired|invalid|approved`, `--demo toast`.

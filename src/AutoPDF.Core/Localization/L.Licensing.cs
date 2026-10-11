@@ -136,7 +136,8 @@ namespace AutoPDF.Core.Localization
         public static string LicContinue => T("Davom etish", "Продолжить", "Continue");
         public static string LicSubmitted => T("Yuborilgan", "Отправлено", "Submitted");
         public static string LicLastOnline => T("Server bilan oxirgi aloqa", "Последняя связь с сервером", "Last contact with the server");
-        public static string LicValidOffline => T("Internetsiz ishlaydi … gacha", "Работает без интернета до", "Works offline until");
+        public static string LicValidOffline(string date) => F(T(
+            "Internetsiz {0} gacha ishlaydi", "Работает без интернета до {0}", "Works offline until {0}"), date);
         public static string LicNever => T("hali yo‘q", "ещё не было", "not yet");
 
         public static string LicOffline(string detail) => T(

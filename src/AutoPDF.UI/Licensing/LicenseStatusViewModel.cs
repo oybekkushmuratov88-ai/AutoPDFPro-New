@@ -62,7 +62,7 @@ namespace AutoPDF.UI.Licensing
         public string RequestId => _status.RequestId ?? string.Empty;
         public string Submitted => Local(_status.SubmittedUtc);
         public string LastOnline => Local(_status.LastOnlineUtc);
-        public string ValidUntil => _status.State == LicenseState.Approved ? Local(_status.ExpiresUtc) : null;
+        public string ValidUntil => _status.State == LicenseState.Approved && _status.ExpiresUtc.HasValue ? L.LicValidOffline(Local(_status.ExpiresUtc)) : null;
 
         public bool CanContinue => _status.State == LicenseState.Approved;
 

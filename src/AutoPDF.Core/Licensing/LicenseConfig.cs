@@ -13,7 +13,7 @@ namespace AutoPDF.Core.Licensing
         /// The Google Apps Script web app (…/exec) running server/licensing/Code.gs in the administrator's
         /// Google account. Redeploying a new version of the same deployment keeps this URL.
         /// </summary>
-        public const string Endpoint = "https://script.google.com/macros/s/AKfycbyBVQunkWme4m-SuCLQI3YzLdKtn0dNejhxvZIoJpitHc8DwWJMJlP39PiVIfmcvekkQA/exec";
+        public const string Endpoint = "https://script.google.com/macros/s/AKfycbxLq4SmB2WQX-0CnlGJO20ICEyisTERPpscwuFZAY-ENsPPIaP7-uR_G9QCQ8JAu7r4jw/exec";
 
         /// <summary>
         /// Optional built-in copy of the server's signing key ("-----BEGIN PUBLIC KEY-----…", shown by the sheet

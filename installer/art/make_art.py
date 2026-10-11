@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 PHOTO = os.path.join(REPO, "src", "AutoPDF.UI", "Assets", "author.jpg")
-VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.0.0"
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.0.1"
 
 # Same colours as the plug-in (src/AutoPDF.UI/Theme/Ui.cs)
 HEADER_START = (0x1E, 0x3A, 0x5F)

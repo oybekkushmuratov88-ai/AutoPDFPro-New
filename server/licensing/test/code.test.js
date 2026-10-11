@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { createContext } = require("./gas-mock");
+const { createContext, saveKeyViaDialog } = require("./gas-mock");
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const rnd = (n) => Array.from(crypto.randomBytes(n), (b) => ALPHABET[b & 31]).join("");
@@ -29,7 +29,7 @@ function server({ keys = true, setup = true } = {}) {
   ctx.gas.onOpen();
   if (keys) {
     const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
-    ctx.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+    saveKeyViaDialog(ctx, privateKey.export({ type: "pkcs8", format: "pem" }));
     ctx.publicKey = publicKey;
   }
   ctx.post = (fields) => parse(ctx.gas.doPost({ parameter: fields }).getContent());
@@ -237,25 +237,56 @@ test("reject and revoke: status column edits and the menu (owner only)", () => {
   assert.equal(reply.status, "rejected");
   assert.equal(reply.token, undefined);
 
-  // Anyone else (anonymous web visitor) cannot use the menu functions.
-  s.state.activeUser = "";
-  assert.throws(() => s.gas.menuApprove(), /Only the owner/);
+  // From a web page of the web app (not the sheet) the menu functions are refused.
+  s.state.ui = false;
+  assert.throws(() => s.gas.menuApprove(), /AutoPDF menu/);
   assert.equal(s.cell(c.installId, "Status"), "rejected");
 });
 
-test("every public function is either an entry point or owner-only", () => {
+test("every public function is an entry point, harmless, or usable only from the sheet", () => {
   const s = server();
-  s.state.activeUser = ""; // anonymous visitor of the web app
-  const allowed = new Set(["doGet", "doPost", "reviewDecide", "onEditInstalled", "onOpen"]);
+  s.state.ui = false;        // called from a web page of the web app (e.g. via google.script.run)
+  s.state.activeUser = "";   // Google often hides the e-mail; nothing may depend on it
+  const allowed = new Set(["doGet", "doPost", "reviewDecide", "onEditInstalled", "onOpen", "setup"]);
   const source = fs.readFileSync(path.join(__dirname, "..", "Code.gs"), "utf8");
   const publics = [...source.matchAll(/^function ([A-Za-z0-9]+)\(/gm)].map((m) => m[1]).filter((n) => !n.endsWith("_"));
-  assert.ok(publics.includes("saveSigningKey") && publics.includes("setup"));
+  assert.ok(publics.includes("saveSigningKey") && publics.includes("menuApprove"));
   for (const name of publics) {
     if (allowed.has(name)) continue;
-    assert.throws(() => s.gas[name]("x"), /Only the owner/, name + " must call requireOwner_()");
+    assert.throws(() => s.gas[name]("x"), /AutoPDF/, name + " must refuse calls from outside the sheet");
   }
-  s.state.activeUser = "intruder@example.com";
-  assert.throws(() => s.gas.saveSigningKey("x"), /Only the owner/);
+});
+
+test("signing key: only with the one-time ticket of the sheet's dialog", () => {
+  const s = server({ keys: false });
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  assert.throws(() => s.gas.saveSigningKey(pem), /Generate signing keys/);
+  assert.throws(() => s.gas.saveSigningKey(pem, "00000000-0000-0000-0000-000000000000"), /Generate signing keys/);
+  s.gas.menuKeys();
+  const ticket = /saveSigningKey\(pem,"([^"]+)"\)/.exec(s.state.dialog.html)[1];
+  s.state.ui = false; // the dialog's call arrives like any server call
+  assert.match(s.gas.saveSigningKey(pem, ticket), /Key ID/);
+  assert.throws(() => s.gas.saveSigningKey(pem, ticket), /Generate signing keys/, "single use");
+});
+
+test("setup works for the owner even when Google hides the e-mail address", () => {
+  const s = createContext();
+  s.state.activeUser = "";
+  s.state.ui = false; // run from the script editor
+  s.gas.setup();
+  assert.equal(s.state.triggers.length, 1);
+  assert.ok(s.state.props.LINK_SECRET);
+});
+
+test("web visitors get plain text, never a page that could call server functions", () => {
+  const s = server();
+  const home = s.gas.doGet({ parameter: {} });
+  assert.equal(home.getContent(), "AutoPDF Pro licence server is running.");
+  assert.doesNotMatch(home.getContent(), /<|google\.script/);
+  const bad = s.gas.doGet({ parameter: { a: "review", rid: "x", op: "approve", exp: "1", sig: "y" } }).getContent();
+  assert.match(bad, /not valid/);
+  assert.doesNotMatch(bad, /<|google\.script/);
 });
 
 test("approved without a signing key: no licence is issued", () => {
@@ -311,20 +342,20 @@ test("signing key dialog: WebCrypto-generated key saved via the owner-only funct
   assert.match(s.state.dialog.html, /crypto\.subtle\.generateKey/);
   assert.match(s.state.dialog.html, /saveSigningKey/);
   const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 3072 });
-  const msg = s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+  const msg = saveKeyViaDialog(s, privateKey.export({ type: "pkcs8", format: "pem" }));
   assert.match(msg, /Key ID [0-9a-f]{16}/);
-  assert.throws(() => s.gas.saveSigningKey("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----"));
+  assert.throws(() => saveKeyViaDialog(s, "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----"));
 });
 
 test("no separate setup needed: 'Generate signing keys' sets everything up", () => {
   const s = server({ keys: false, setup: false });
   assert.equal(s.state.triggers.length, 0);
   const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
-  s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+  saveKeyViaDialog(s, privateKey.export({ type: "pkcs8", format: "pem" }));
   assert.equal(s.state.triggers.length, 1, "Status trigger installed");
   assert.ok(s.state.props.LINK_SECRET && s.state.props.SPREADSHEET_ID && s.state.props.ADMIN_EMAIL);
   assert.ok(s.ss.getSheetByName("Requests") && s.ss.getSheetByName("Log"));
-  s.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+  saveKeyViaDialog(s, privateKey.export({ type: "pkcs8", format: "pem" }));
   assert.equal(s.state.triggers.length, 1, "not duplicated");
 });
 

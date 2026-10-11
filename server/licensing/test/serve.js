@@ -6,13 +6,13 @@
 
 const http = require("http");
 const crypto = require("crypto");
-const { createContext } = require("./gas-mock");
+const { createContext, saveKeyViaDialog } = require("./gas-mock");
 
 const ctx = createContext();
 ctx.state.now = Date.now();
 ctx.gas.setup();
 const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
-ctx.gas.saveSigningKey(privateKey.export({ type: "pkcs8", format: "pem" }));
+saveKeyViaDialog(ctx, privateKey.export({ type: "pkcs8", format: "pem" }));
 setInterval(() => { ctx.state.now = Date.now(); }, 200).unref();
 
 const server = http.createServer((req, res) => {

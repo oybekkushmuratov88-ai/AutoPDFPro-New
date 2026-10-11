@@ -91,6 +91,7 @@ function createContext(options = {}) {
   const state = {
     now: options.now || Date.parse("2026-10-01T12:00:00Z"),
     activeUser: "owner@example.com",
+    ui: true, // false = a call from a web page of the web app (SpreadsheetApp.getUi() is unavailable there)
     owner: "owner@example.com",
     mails: [],
     alerts: [],
@@ -147,7 +148,10 @@ function createContext(options = {}) {
       getActiveSpreadsheet: () => ss,
       openById: (id) => { if (id !== "SHEET-ID") throw new Error("no such sheet"); return ss; },
       getActiveSheet: () => state.activeSheet || ss.sheets[0],
-      getUi: () => ui,
+      getUi: () => {
+        if (!state.ui) throw new Error("Cannot call SpreadsheetApp.getUi() from this context.");
+        return ui;
+      },
       flush: () => {},
       newDataValidation: () => {
         const b = { requireValueInList: () => b, setAllowInvalid: () => b, build: () => ({}) };
@@ -167,7 +171,8 @@ function createContext(options = {}) {
           const e = state.cache.get(k);
           return e && e.until > state.now ? e.value : null;
         },
-        put: (k, v, seconds) => { state.cache.set(k, { value: String(v), until: state.now + seconds * 1000 }); }
+        put: (k, v, seconds) => { state.cache.set(k, { value: String(v), until: state.now + seconds * 1000 }); },
+        remove: (k) => { state.cache.delete(k); }
       })
     },
     LockService: { getScriptLock: () => ({ waitLock: () => {}, tryLock: () => true, releaseLock: () => {} }) },
@@ -209,4 +214,11 @@ function createContext(options = {}) {
   return { gas: context, state, ss, Sheet, Range };
 }
 
-module.exports = { createContext, toSigned, toBuffer };
+/** What the "Generate signing keys" dialog does: open it (owner, in the sheet) and send the key with its ticket. */
+function saveKeyViaDialog(ctx, pem) {
+  ctx.gas.menuKeys();
+  const ticket = /saveSigningKey\(pem,"([^"]+)"\)/.exec(ctx.state.dialog.html)[1];
+  return ctx.gas.saveSigningKey(pem, ticket);
+}
+
+module.exports = { createContext, saveKeyViaDialog, toSigned, toBuffer };

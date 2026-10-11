@@ -2,7 +2,7 @@
 //
 // Paste this whole file into Extensions > Apps Script of your sheet, Deploy > Web app (Execute as: Me,
 // Who has access: Anyone; for an existing deployment: Edit > New version), then in the sheet run
-// AutoPDF > Generate signing keys (it also creates the sheets and the trigger). Step-by-step:
+// AutoPDF > Generate signing keys (it also creates the sheets and the trigger; running setup() is optional). Step-by-step:
 // server/licensing/README.md.
 //
 // What it does
@@ -71,8 +71,13 @@ function doGet(e) {
   rememberUrl_();
   var p = (e && e.parameter) || {};
   if (p.a === "review") return reviewPage_(p);
-  return HtmlService.createHtmlOutput(page_("AutoPDF Pro", "<p>AutoPDF Pro licence server is running.</p>"))
-    .setTitle("AutoPDF Pro");
+  // Plain text, not an HTML page: visitors without a signed link never get a page that could call server
+  // functions (google.script.run).
+  return text_("AutoPDF Pro licence server is running.");
+}
+
+function text_(message) {
+  return ContentService.createTextOutput(message).setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ======================================================================================================
@@ -289,14 +294,10 @@ function checkLink_(rid, op, exp, sig) {
 /** GET of an e-mailed link: shows the request and a confirm button; never changes anything by itself. */
 function reviewPage_(p) {
   var problem = checkLink_(p.rid, p.op, p.exp, p.sig);
-  if (problem) {
-    return HtmlService.createHtmlOutput(page_("AutoPDF Pro",
-      "<p class='err'>This link is not valid (" + esc_(problem) + ").</p><p>Use the Requests sheet or the AutoPDF menu instead.</p>"))
-      .setTitle("AutoPDF Pro");
-  }
+  if (problem) return text_("AutoPDF Pro: this link is not valid (" + problem + "). Use the Requests sheet or the AutoPDF menu instead.");
   var sh = requests_();
   var row = findRow_(sh, COL.RequestId, p.rid);
-  if (!row) return HtmlService.createHtmlOutput(page_("AutoPDF Pro", "<p class='err'>Request not found.</p>")).setTitle("AutoPDF Pro");
+  if (!row) return text_("AutoPDF Pro: request not found.");
   var r = readRow_(sh, row);
   var approve = p.op === "approve";
   var html =
@@ -397,21 +398,23 @@ function menuReject() { decideSelected_("rejected"); }
 function menuPending() { decideSelected_("pending"); }
 
 function decideSelected_(status) {
-  requireOwner_();
+  var ui = requireSheetUi_();
   var sh = SpreadsheetApp.getActiveSheet();
-  var ui = SpreadsheetApp.getUi();
   if (sh.getName() !== SHEET_REQUESTS) { ui.alert("Select rows in the \"" + SHEET_REQUESTS + "\" sheet first."); return; }
   var range = sh.getActiveRange();
   var messages = [];
   for (var row = Math.max(range.getRow(), 2); row <= range.getLastRow(); row++) {
     if (!sh.getRange(row, COL.RequestId).getValue()) continue;
-    messages.push(applyDecision_(sh, row, status, "menu (" + Session.getActiveUser().getEmail() + ")"));
+    messages.push(applyDecision_(sh, row, status, "menu" + userSuffix_()));
   }
   ui.alert(messages.length ? messages.join("\n") : "No request rows selected.");
 }
 
 function menuKeys() {
-  requireOwner_();
+  requireSheetUi_();
+  // One-time ticket for this dialog: saveSigningKey accepts a key only together with it.
+  var ticket = Utilities.getUuid();
+  CacheService.getScriptCache().put("keyticket:" + ticket, "1", 1800);
   var html = [
     "<div style='font:14px Arial'>",
     "<p>Creates a new RSA-2048 signing key <b>in your browser</b> and stores it in this script's properties.",
@@ -425,16 +428,23 @@ function menuKeys() {
     "var p8=b64(await crypto.subtle.exportKey('pkcs8',kp.privateKey));",
     "var pem='-----BEGIN PRIVATE KEY-----\\n'+p8.match(/.{1,64}/g).join('\\n')+'\\n-----END PRIVATE KEY-----\\n';",
     "o.textContent='Saving...';",
-    "google.script.run.withSuccessHandler(function(m){o.textContent=m;}).withFailureHandler(function(e){o.textContent='Error: '+e.message;}).saveSigningKey(pem);",
+    "google.script.run.withSuccessHandler(function(m){o.textContent=m;}).withFailureHandler(function(e){o.textContent='Error: '+e.message;}).saveSigningKey(pem," + JSON.stringify(ticket) + ");",
     "}catch(e){o.textContent='This browser cannot create keys here: '+e+'. See README (openssl).';}}",
     "</script>"
   ].join("");
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(560).setHeight(380), "AutoPDF: signing key");
 }
 
-/** Stores a PKCS#8 private key (PEM) and the public key derived from it. Owner only. */
-function saveSigningKey(privatePem) {
-  requireOwner_();
+/**
+ * Stores a PKCS#8 private key (PEM) and the public key derived from it. Called by the dialog of
+ * AutoPDF > Generate signing keys, with the one-time ticket that only that dialog knows.
+ */
+function saveSigningKey(privatePem, ticket) {
+  var cache = CacheService.getScriptCache();
+  if (!ticket || !/^[0-9a-fA-F-]{36}$/.test(String(ticket)) || !cache.get("keyticket:" + ticket)) {
+    throw new Error("Open the Google Sheet and use AutoPDF > Generate signing keys.");
+  }
+  cache.remove("keyticket:" + ticket);
   var der = pemToBytes_(privatePem);
   var spki = spkiFromPkcs8_(der);
   var pem = "-----BEGIN PRIVATE KEY-----\n" + Utilities.base64Encode(der).replace(/(.{64})/g, "$1\n").replace(/\n$/, "") + "\n-----END PRIVATE KEY-----\n";
@@ -448,17 +458,15 @@ function saveSigningKey(privatePem) {
 }
 
 function menuShowKey() {
-  requireOwner_();
+  var ui = requireSheetUi_();
   var keys = signingKeys_();
-  var ui = SpreadsheetApp.getUi();
   if (!keys) { ui.alert("No signing key yet: AutoPDF > Generate signing keys."); return; }
   ui.alert("Key ID " + keys.keyId + "\n\n-----BEGIN PUBLIC KEY-----\n" +
            keys.publicKey.replace(/(.{64})/g, "$1\n").replace(/\n$/, "") + "\n-----END PUBLIC KEY-----");
 }
 
 function menuAdminEmail() {
-  requireOwner_();
-  var ui = SpreadsheetApp.getUi();
+  var ui = requireSheetUi_();
   var res = ui.prompt("Administrator e-mail", "New requests are sent to (now: " + adminEmail_() + "):", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
   var email = res.getResponseText().trim();
@@ -468,8 +476,7 @@ function menuAdminEmail() {
 }
 
 function menuCheck() {
-  requireOwner_();
-  SpreadsheetApp.getUi().alert(configurationReport_().join("\n"));
+  requireSheetUi_().alert(configurationReport_().join("\n"));
 }
 
 function configurationReport_() {
@@ -488,10 +495,9 @@ function configurationReport_() {
 
 /**
  * Optional (AutoPDF > Generate signing keys does the same): sheets, link secret, Status trigger.
- * Safe to run again.
+ * Safe to run again (and harmless whoever runs it: it never changes keys, decisions or settings).
  */
 function setup() {
-  requireOwner_();
   ensureSetup_(true);
   Logger.log(configurationReport_().join("\n"));
 }
@@ -511,14 +517,25 @@ function ensureSetup_(recreateTrigger) {
   ScriptApp.newTrigger("onEditInstalled").forSpreadsheet(spreadsheet_()).onEdit().create();
 }
 
-/** Functions callable from a web page must be guarded: only the script owner may run them. */
-function requireOwner_() {
-  var active = "";
-  var owner = "";
-  try { active = Session.getActiveUser().getEmail(); } catch (err) { active = ""; }
-  try { owner = Session.getEffectiveUser().getEmail(); } catch (err) { owner = ""; }
-  if (!active || !owner || active.toLowerCase() !== owner.toLowerCase()) {
-    throw new Error("Only the owner of this script can do this.");
+/**
+ * Administrator functions run only inside the Google Sheet (its AutoPDF menu): SpreadsheetApp.getUi() exists
+ * only there, so a call from a web page of the web app is refused. (The web app shows such a page only to
+ * holders of a signed link; everyone else gets plain text.) Edit access to the sheet is checked by Google.
+ */
+function requireSheetUi_() {
+  try {
+    return SpreadsheetApp.getUi();
+  } catch (err) {
+    throw new Error("Open the Google Sheet and use the AutoPDF menu.");
+  }
+}
+
+function userSuffix_() {
+  try {
+    var email = Session.getActiveUser().getEmail();
+    return email ? " (" + email + ")" : "";
+  } catch (err) {
+    return "";
   }
 }
 

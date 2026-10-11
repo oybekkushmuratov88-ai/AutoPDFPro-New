@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AutoPDF.Cad.Infrastructure;
+using AutoPDF.Cad.Licensing;
 using AutoPDF.Cad.Plotting;
 using AutoPDF.Cad.Workflow;
 using AutoPDF.Core.Hosting;
 using AutoPDF.Core.Localization;
 using AutoPDF.Core.Paper;
-using AutoPDF.Core.Registration;
 using AutoPDF.Core.Settings;
-using AutoPDF.UI.Registration;
 using AutoPDF.UI.Services;
 #if ZWCAD
 using ZwSoft.ZwCAD.Runtime;
@@ -130,34 +129,21 @@ namespace AutoPDF.Cad.Commands
             }
         }
 
-        /// <summary>Admin-only: the list of registered users (protected by the admin key, checked on the server).</summary>
-        [CommandMethod("AUTOPDFPRO", "AUTOPDFADMIN", CommandFlags.Modal)]
-        public void AutoPdfAdmin()
+        /// <summary>Licence status: installation ID, approval state, "Check now" (and registration if needed).</summary>
+        [CommandMethod("AUTOPDFPRO", "AUTOPDFLICENSE", CommandFlags.Modal)]
+        public void AutoPdfLicense()
         {
             Document doc = CadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
 
             try
             {
-                var log = AutoPdfApp.Log;
-                PluginSettings settings = new SettingsService(SettingsService.DefaultFilePath, log).Load();
-                L.Current = settings.Language;
-
-                if (!RegistrationConfig.IsConfigured)
-                {
-                    MessageDialog.Show(AcadWindow, L.AdminNotConfigured, L.AppTitle, DialogKind.Info);
-                    return;
-                }
-
-                using (var gateway = new HttpRegistrationGateway(RegistrationConfig.Endpoint, AutoPdfApp.Version))
-                {
-                    var vm = new UsersViewModel(gateway, new AdminKeyStore(AdminKeyStore.DefaultFilePath));
-                    CadApp.ShowModalWindow(AcadWindow, new UsersWindow(vm), false);
-                }
+                L.Current = new SettingsService(SettingsService.DefaultFilePath, AutoPdfApp.Log).Load().Language;
+                LicenseGate.ShowLicenseInfo(doc, AcadWindow);
             }
             catch (System.Exception ex)
             {
-                AutoPdfApp.Log.Error("AUTOPDFADMIN", ex);
+                AutoPdfApp.Log.Error("AUTOPDFLICENSE", ex);
                 doc.Editor.WriteMessage("\n" + L.EchoError + CadErrors.Describe(ex) + "\n");
             }
         }

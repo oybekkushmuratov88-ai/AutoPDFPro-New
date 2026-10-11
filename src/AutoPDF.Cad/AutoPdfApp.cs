@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using AutoPDF.Cad.Infrastructure;
+using AutoPDF.Cad.Licensing;
 using AutoPDF.Core.Hosting;
 using AutoPDF.Core.Logging;
 #if ZWCAD
@@ -58,6 +59,7 @@ namespace AutoPDF.Cad
                         break;
                 }
                 doc?.Editor.WriteMessage(L.LoadedMessage(Version));
+                LicenseGate.StartPeriodicChecks();
             }
             catch
             {
@@ -67,6 +69,7 @@ namespace AutoPDF.Cad
 
         public void Terminate()
         {
+            LicenseGate.Stop();
             AppDomain.CurrentDomain.AssemblyResolve -= OnAssemblyResolve;
         }
 

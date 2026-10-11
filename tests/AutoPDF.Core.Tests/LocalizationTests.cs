@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using AutoPDF.Core.Licensing;
 using AutoPDF.Core.Localization;
 using AutoPDF.Core.Models;
 using AutoPDF.Core.Settings;
@@ -39,6 +40,17 @@ namespace AutoPDF.Core.Tests
             {
                 texts.Add(("StatusText." + status, L.StatusText(status)));
             }
+            foreach (LicenseState state in Enum.GetValues(typeof(LicenseState)))
+            {
+                texts.Add(("LicStateName." + state, L.LicStateName(state)));
+                texts.Add(("LicHeadline." + state, L.LicHeadline(state)));
+                texts.Add(("LicExplanation." + state, L.LicExplanation(state)));
+                texts.Add(("LicBlockedEcho." + state, L.LicBlockedEcho(state)));
+            }
+            foreach (string code in new[] { "rate_limited", "client_mismatch", "machine_mismatch", "not_configured", "invalid_field:email", "invalid_field:name", "invalid_field:consent" })
+            {
+                texts.Add(("LicServerError." + code, L.LicServerError(code)));
+            }
             return texts;
         }
 
@@ -49,6 +61,7 @@ namespace AutoPDF.Core.Tests
             if (t == typeof(double)) return 1.5;
             if (t == typeof(bool)) return true;
             if (t == typeof(SheetStatus)) return SheetStatus.Ready;
+            if (t == typeof(LicenseState)) return LicenseState.Pending;
             return "obj";
         }
 

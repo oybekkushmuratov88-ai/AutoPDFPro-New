@@ -8,11 +8,11 @@ using AutoPDF.Core.Geometry;
 using AutoPDF.Core.Localization;
 using AutoPDF.Core.Models;
 using AutoPDF.Core.Paper;
-using AutoPDF.Core.Registration;
+using AutoPDF.Core.Licensing;
 using AutoPDF.Core.Settings;
 using AutoPDF.UI.Main;
 using AutoPDF.UI.Preview;
-using AutoPDF.UI.Registration;
+using AutoPDF.UI.Licensing;
 using AutoPDF.UI.Services;
 using AutoPDF.UI.Settings;
 using AutoPDF.UI.Summary;
@@ -24,8 +24,10 @@ namespace AutoPDF.UiDemo
     ///   AutoPDF.UiDemo.exe                  → main window (+ settings, about)
     ///   AutoPDF.UiDemo.exe --lang ru        → same in Russian (uz / ru / en)
     ///   AutoPDF.UiDemo.exe some.pdf         → preview window for that PDF, then the summary window
-    ///   AutoPDF.UiDemo.exe --demo register  → the first-run registration window (add --fail to test offline)
-    ///   AutoPDF.UiDemo.exe --demo users     → the admin user list (any key works in the demo)
+    ///   AutoPDF.UiDemo.exe --demo register  → the first-launch registration form (add --fail to test offline)
+    ///   AutoPDF.UiDemo.exe --demo pending   → the licence status window; "Check now" approves on the 2nd check
+    ///   AutoPDF.UiDemo.exe --demo rejected | expired | invalid | approved → the other licence states
+    ///   AutoPDF.UiDemo.exe --demo toast     → the approval notification
     /// </summary>
     public static class Program
     {
@@ -52,55 +54,73 @@ namespace AutoPDF.UiDemo
             string pdf = args.FirstOrDefault(a => a.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) && File.Exists(a));
 
             if (demo == "register") ShowRegister(args.Any(a => string.Equals(a, "--fail", StringComparison.OrdinalIgnoreCase)));
-            else if (demo == "users") ShowUsers();
+            else if (demo == "toast") ShowToast();
+            else if (demo != null && Enum.TryParse(demo, true, out LicenseState state)) ShowStatus(state);
             else if (pdf != null) ShowPreview(pdf);
             else ShowMain(settings);
 
             app.Shutdown();
         }
 
+        private const string DemoInstallId = "APDF-7K3M-Q9TX-2FHC-WN4R";
+
+        private static LicenseStatus DemoStatus(LicenseState state) => new LicenseStatus
+        {
+            State = state,
+            InstallId = DemoInstallId,
+            RequestId = "0f8c2a51-3d7e-4b9a-9a61-5c2e8d1b7f40",
+            Name = "Ali Valiyev",
+            Email = "ali@example.uz",
+            SubmittedUtc = DateTime.UtcNow.AddHours(-2),
+            LastOnlineUtc = DateTime.UtcNow.AddMinutes(-1),
+            ExpiresUtc = DateTime.UtcNow.AddDays(14)
+        };
+
         private static void ShowRegister(bool simulateOffline)
         {
-            var vm = new RegistrationViewModel("2.2.0 (demo)")
+            var vm = new RegistrationViewModel(DemoInstallId)
             {
-                Submit = _ =>
+                Submit = (name, email) =>
                 {
                     Thread.Sleep(900); // show the busy state
-                    return simulateOffline
-                        ? new SubmitResult { Ok = false, NetworkProblem = true, Error = "demo offline" }
-                        : new SubmitResult { Ok = true };
-                },
-                Persist = (_, __) => { }
+                    if (simulateOffline) return new LicenseStatus { State = LicenseState.NotRegistered, InstallId = DemoInstallId, NetworkError = "No such host is known. (demo)" };
+                    LicenseStatus s = DemoStatus(LicenseState.Pending);
+                    s.Name = name;
+                    s.Email = email;
+                    s.CheckedOnline = true;
+                    return s;
+                }
             };
             new RegistrationWindow(vm) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
-            MessageDialog.Show(IntPtr.Zero, "Outcome: " + vm.Outcome);
+            if (vm.Result != null) ShowStatus(vm.Result.State, vm.Result);
         }
 
-        private static void ShowUsers()
+        private static void ShowStatus(LicenseState state, LicenseStatus initial = null)
         {
-            var vm = new UsersViewModel(new DemoGateway(), new AdminKeyStore(Path.Combine(Path.GetTempPath(), "autopdf-demo-admin.txt")));
-            new UsersWindow(vm) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
-        }
-
-        /// <summary>Returns sample users for the admin-window demo (any key is accepted).</summary>
-        private sealed class DemoGateway : IRegistrationGateway
-        {
-            public SubmitResult Submit(RegistrationInfo info) => new SubmitResult { Ok = true };
-
-            public UsersResult FetchUsers(string adminKey)
+            int checks = 0;
+            var vm = new LicenseStatusViewModel(initial ?? DemoStatus(state))
             {
-                Thread.Sleep(500);
-                return new UsersResult
+                Check = trigger =>
                 {
-                    Ok = true,
-                    Users = new List<RegisteredUser>
-                    {
-                        new RegisteredUser { Number = 1, Date = "2026-09-29 09:12", FullName = "Kushmuratov Oybek", Email = "oybek@example.com", Phone = "+998 90 111 22 33", Computer = "OYBEK-PC", WindowsUser = "oybek", Version = "2.1.0" },
-                        new RegisteredUser { Number = 2, Date = "2026-09-29 10:03", FullName = "Ali Valiyev", Email = "ali@example.uz", Phone = "", Computer = "WS-ARCH-02", WindowsUser = "ali", Version = "2.1.0" },
-                        new RegisteredUser { Number = 3, Date = "2026-09-30 14:40", FullName = "Nigora Karimova", Email = "nigora@example.uz", Phone = "+998 91 555 66 77", Computer = "DESIGN-05", WindowsUser = "nigora", Version = "2.1.0" }
-                    }
-                };
-            }
+                    Thread.Sleep(700);
+                    checks++;
+                    LicenseStatus s = DemoStatus(state == LicenseState.Pending && checks >= 2 ? LicenseState.Approved : state);
+                    s.CheckedOnline = state != LicenseState.Expired;
+                    if (state == LicenseState.Expired) s.NetworkError = "The operation has timed out. (demo)";
+                    return s;
+                }
+            };
+            new LicenseStatusWindow(vm) { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog();
+        }
+
+        private static void ShowToast()
+        {
+            LicenseToast.Show(L.LicToastApproved, true);
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(13) };
+            timer.Tick += (s, e) => { timer.Stop(); frame.Continue = false; };
+            timer.Start();
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
         }
 
         private static void ShowMain(PluginSettings settings)

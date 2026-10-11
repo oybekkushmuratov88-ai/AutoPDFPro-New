@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using AutoPDF.Cad.Detection;
 using AutoPDF.Cad.Infrastructure;
+using AutoPDF.Cad.Licensing;
 using AutoPDF.Cad.Plotting;
 using AutoPDF.Cad.Transient;
 using AutoPDF.Core.Localization;
@@ -16,12 +17,10 @@ using AutoPDF.Core.Models;
 using AutoPDF.Core.Naming;
 using AutoPDF.Core.Paper;
 using AutoPDF.Core.Plotting;
-using AutoPDF.Core.Registration;
 using AutoPDF.Core.Settings;
 using AutoPDF.Core.Sorting;
 using AutoPDF.UI.Main;
 using AutoPDF.UI.Preview;
-using AutoPDF.UI.Registration;
 using AutoPDF.UI.Services;
 using AutoPDF.UI.Settings;
 using AutoPDF.UI.Summary;
@@ -74,7 +73,7 @@ namespace AutoPDF.Cad.Workflow
         public void Run()
         {
             _log.Info("===== AUTOPDF: " + _doc.Name + " =====");
-            if (!EnsureRegistered()) return;
+            if (!LicenseGate.EnsureLicensed(_doc, AcadWindow)) return;
             string previousLayout = _pageSetup.EnsureModelSpace();
             string status = L.UnitsStatus(DrawingUnits.Describe((int)_doc.Database.Insunits)) + L.NoSheetsYet;
 
@@ -113,120 +112,6 @@ namespace AutoPDF.Cad.Workflow
                 }
             }
         }
-
-        // ---- Registration (required before the plug-in can be used) --------------------------
-
-        /// <summary>
-        /// Shows the registration window on the first use and blocks AUTOPDF until the user registers.
-        /// Disabled unless a web-app URL is configured (<see cref="RegistrationConfig.IsConfigured"/>), so a
-        /// build without the URL behaves exactly as before. A registration that could not reach the server is
-        /// re-sent quietly on later runs.
-        /// </summary>
-        private bool EnsureRegistered()
-        {
-            if (!RegistrationConfig.IsConfigured) return true;
-
-            var store = new RegistrationStore(RegistrationStore.DefaultFilePath, _log);
-
-            // Registered during installation (Setup.exe writes a machine-wide marker) → AUTOPDF just works.
-            MachineRegistration machine = MachineRegistration.Read();
-            if (machine != null && machine.Registered)
-            {
-                if (!machine.Delivered) EnsureMachineDelivered(store, machine);
-                return true;
-            }
-
-            RegistrationInfo existing = store.Load();
-            if (existing != null && existing.HasCompleted)
-            {
-                if (!existing.Delivered) ResendInBackground(store, existing);
-                return true;
-            }
-
-            var vm = new RegistrationViewModel(AutoPdfApp.Version);
-            using (var gateway = new HttpRegistrationGateway(RegistrationConfig.Endpoint, AutoPdfApp.Version))
-            {
-                vm.Submit = info => gateway.Submit(info);
-                vm.Persist = (info, delivered) =>
-                {
-                    store.Save(info);
-                    _log.Info(L.RegSavedLog(info.Email, delivered));
-                };
-
-                CadApp.ShowModalWindow(AcadWindow, new RegistrationWindow(vm), false);
-            }
-
-            if (vm.Outcome == RegistrationOutcome.Registered) return true;
-
-            MessageDialog.Show(AcadWindow, L.RegMandatoryAbort, L.AppTitle, DialogKind.Info);
-            _log.Info(L.RegAbortedLog);
-            return false;
-        }
-
-        /// <summary>
-        /// The installer registered the machine but could not reach the server (installed offline). Re-send
-        /// once from the plug-in and remember, per user, that it was delivered so the author is not e-mailed
-        /// again on every run.
-        /// </summary>
-        private void EnsureMachineDelivered(RegistrationStore store, MachineRegistration machine)
-        {
-            RegistrationInfo local = store.Load();
-            if (local != null && local.Delivered) return; // this user already re-sent it
-
-            var info = new RegistrationInfo
-            {
-                FullName = machine.Name,
-                Email = machine.Email,
-                Phone = machine.Phone,
-                Computer = MachineFacts.Computer,
-                WindowsUser = MachineFacts.WindowsUser,
-                MachineId = MachineFacts.MachineId(),
-                Os = MachineFacts.Os,
-                Version = AutoPdfApp.Version,
-                Language = L.Current.ToString(),
-                RegisteredAtUtc = string.IsNullOrEmpty(machine.AtUtc)
-                    ? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
-                    : machine.AtUtc,
-                Delivered = false
-            };
-            store.Save(info);
-            ResendInBackground(store, info);
-        }
-
-        /// <summary>Re-send a registration that reached this machine but not the server yet. Best effort.</summary>
-        private void ResendInBackground(RegistrationStore store, RegistrationInfo info)
-        {
-            Task.Run(() =>
-            {
-                try
-                {
-                    using (var gateway = new HttpRegistrationGateway(RegistrationConfig.Endpoint, AutoPdfApp.Version))
-                    {
-                        info.Attempts++;
-                        SubmitResult result = gateway.Submit(info);
-                        if (result.Ok)
-                        {
-                            info.Delivered = true;
-                            info.LastError = string.Empty;
-                            store.Save(info);
-                            _log.Info(L.RegResentLog(info.Email));
-                        }
-                        else
-                        {
-                            info.LastError = result.Error;
-                            store.Save(info);
-                            _log.Warn(L.RegResendFailedLog(result.Error ?? string.Empty));
-                        }
-                    }
-                }
-                catch
-                {
-                    // Ignore — it will be retried the next time AUTOPDF runs.
-                }
-            });
-        }
-
-        // ---- Main window ---------------------------------------------------------------------
 
         private MainAction ShowMain(string status)
         {

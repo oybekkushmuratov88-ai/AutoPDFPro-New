@@ -26,9 +26,9 @@ namespace AutoPDF.Core.Localization
             "\nThe sheets are numbered. Review the drawing (zoom/pan work), then press ENTER: ");
 
         public static string LoadedMessage(string version) => F(T(
-            "\nAutoPDF Pro v{0} yuklandi (© {1}). Buyruq: AUTOPDF  (diagnostika: AUTOPDFMEDIA, jurnal: AUTOPDFLOG)\n",
-            "\nAutoPDF Pro v{0} загружен (© {1}). Команда: AUTOPDF  (диагностика: AUTOPDFMEDIA, журнал: AUTOPDFLOG)\n",
-            "\nAutoPDF Pro v{0} loaded (© {1}). Command: AUTOPDF  (diagnostics: AUTOPDFMEDIA, log: AUTOPDFLOG)\n"), version, AppInfo.Author);
+            "\nAutoPDF Pro v{0} yuklandi (© {1}). Buyruq: AUTOPDF  (litsenziya: AUTOPDFLICENSE, diagnostika: AUTOPDFMEDIA, jurnal: AUTOPDFLOG)\n",
+            "\nAutoPDF Pro v{0} загружен (© {1}). Команда: AUTOPDF  (лицензия: AUTOPDFLICENSE, диагностика: AUTOPDFMEDIA, журнал: AUTOPDFLOG)\n",
+            "\nAutoPDF Pro v{0} loaded (© {1}). Command: AUTOPDF  (licence: AUTOPDFLICENSE, diagnostics: AUTOPDFMEDIA, log: AUTOPDFLOG)\n"), version, AppInfo.Author);
         public static string HostWrongBuild(string build, string host) => F(T(
             "\nAutoPDF Pro: bu modul {0} uchun, lekin {1} da ishga tushdi. AutoPDF Pro ni qayta o‘rnating (Setup.exe) — o‘rnatuvchi har bir dastur uchun mos modulni ulaydi.\n",
             "\nAutoPDF Pro: этот модуль собран для {0}, но запущен в {1}. Переустановите AutoPDF Pro (Setup.exe) — установщик подключает подходящий модуль для каждой программы.\n",

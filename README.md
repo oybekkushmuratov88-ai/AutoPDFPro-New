@@ -39,7 +39,7 @@ ZWCAD. Details, loading mechanisms and limits: [docs/COMPATIBILITY.md](docs/COMP
 ## Installation
 
 1. Close AutoCAD and ZWCAD.
-2. Run **`AutoPDFPro-3.0.1-Setup.exe`** → language (O‘zbekcha / Русский / English) → the components page
+2. Run **`AutoPDFPro-3.0.2-Setup.exe`** → language (O‘zbekcha / Русский / English) → the components page
    preselects the applications found on the computer (*AutoCAD 2021–2026*, *ZWCAD 2024*, *2025*, *2026*) →
    *O‘rnatish* / *Установить* / *Install*. Windows asks for administrator rights.
 3. Start AutoCAD or ZWCAD and type **`AUTOPDF`**. The first time, fill in the registration form; PDF
@@ -57,7 +57,7 @@ What Setup installs:
   only once.
 
 Setup.exe is not code-signed, so Windows SmartScreen may show *“Windows protected your PC”*: click *More info →
-Run anyway*. Silent installation: `AutoPDFPro-3.0.1-Setup.exe /S` (installs for the detected applications).
+Run anyway*. Silent installation: `AutoPDFPro-3.0.2-Setup.exe /S` (installs for the detected applications).
 
 **Uninstall:** *Settings → Apps* → **AutoPDF Pro (AutoCAD, ZWCAD)** → *Uninstall*
 (silent: `"C:\Program Files\AutoPDF Pro\Uninstall.exe" /S`). Settings, logs and the licence state are kept
@@ -121,7 +121,7 @@ On Linux or macOS `build/build.sh` builds, runs the .NET tests and the licence-s
 compiles Setup.exe (`apt install nsis` / `brew install makensis`).
 
 Output: `artifacts\AutoPDFPro.bundle` (AutoCAD), `artifacts\ZWCAD\<year>` (ZWCAD) and
-`dist\AutoPDFPro-3.0.1-Setup.exe`. The installer is `installer\AutoPDFPro.nsi`; its pictures are made by
+`dist\AutoPDFPro-3.0.2-Setup.exe`. The installer is `installer\AutoPDFPro.nsi`; its pictures are made by
 `installer\art\make_art.py`.
 
 ## Documentation
@@ -137,6 +137,7 @@ Output: `artifacts\AutoPDFPro.bundle` (AutoCAD), `artifacts\ZWCAD\<year>` (ZWCAD
 
 ## Changelog
 
+* **3.0.2** — Contact phone for requests and suggestions (+998 93 109 12 28) in the *About* window, the installer picture and the *Apps* entry.
 * **3.0.1** — The licence server moved to the web app of the *AutoPDF Pro таблица* sheet (new `/exec` URL); the server set-up no longer depends on Google returning the owner's e-mail.
 * **3.0.0** — **Multi-CAD**: AutoCAD 2021–2024 (R24), AutoCAD 2025–2026 (R25, .NET 8) and ZWCAD
   2024/2025/2026, each with its own assembly; shared, CAD-independent PDF pipeline; run-time host detection;

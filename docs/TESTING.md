@@ -30,7 +30,7 @@ border that must be ignored, a title block, diagonals and the text `TOP n` near 
 
 Steps — tick each for AutoCAD 2021 · 2022 · 2023 · 2024 · 2025 · 2026 · ZWCAD 2024 · 2025 · 2026:
 
-1. **Loading** — the command line shows `AutoPDF Pro v3.0.1 …`; `AUTOPDFLOG` → the log's first line names the
+1. **Loading** — the command line shows `AutoPDF Pro v3.0.2 …`; `AUTOPDFLOG` → the log's first line names the
    right host and build (e.g. `ZWCAD 2025 … build: AutoPDF.ZWCAD.2025 for ZWCAD 2025`).
 2. **Licence** — first `AUTOPDF` shows the registration form with an installation ID; after sending, the
    *Pending approval* window; approve in the sheet → within a minute the window turns green → *Continue*.

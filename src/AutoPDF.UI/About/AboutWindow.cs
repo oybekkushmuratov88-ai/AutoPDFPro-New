@@ -7,7 +7,7 @@ using AutoPDF.UI.Theme;
 
 namespace AutoPDF.UI.About
 {
-    /// <summary>"About" window: author photo, name, role, product description, version and copyright.</summary>
+    /// <summary>"About" window: author photo, name, role, product description, version, copyright and contact phone.</summary>
     public sealed class AboutWindow : Window
     {
         public AboutWindow(string version)
@@ -59,6 +59,7 @@ namespace AutoPDF.UI.About
             body.Children.Add(Centered(L.AppTitle + " · " + L.VersionText(version ?? string.Empty), 12.5, FontWeights.SemiBold, Palette.Text, new Thickness(0, 0, 0, 2)));
             body.Children.Add(Centered(L.Compatibility, 12, FontWeights.Normal, Palette.Muted, new Thickness(0, 0, 0, 12)));
             body.Children.Add(Centered(L.Copyright, 11.5, FontWeights.Normal, Palette.Muted, new Thickness(0)));
+            body.Children.Add(Centered(L.ContactLine, 13, FontWeights.SemiBold, Palette.Primary, new Thickness(0, 10, 0, 0)));
 
             root.Children.Add(body);
             Content = root;

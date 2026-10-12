@@ -19,7 +19,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 PHOTO = os.path.join(REPO, "src", "AutoPDF.UI", "Assets", "author.jpg")
-VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.0.1"
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.0.2"
+PHONE = "+998 93 109 12 28"
 
 # Same colours as the plug-in (src/AutoPDF.UI/Theme/Ui.cs)
 HEADER_START = (0x1E, 0x3A, 0x5F)
@@ -143,15 +144,19 @@ def welcome_bitmap():
     w, h = 164, 314
     img = gradient(w, h, HEADER_START, HEADER_END)
     logo = draw_logo(64)
-    img.paste(logo, ((w - 64) // 2, 26), logo)
+    img.paste(logo, ((w - 64) // 2, 16), logo)
     d = ImageDraw.Draw(img)
-    centered_text(d, 100, "AutoPDF Pro", font(True, 17), (255, 255, 255), w)
-    centered_text(d, 124, "v" + VERSION + " · AutoCAD · ZWCAD", font(False, 10), LIGHT_BLUE, w)
-    d.line((42, 152, w - 42, 152), fill=lerp(HEADER_START, (255, 255, 255), 0.45), width=1)
+    centered_text(d, 88, "AutoPDF Pro", font(True, 17), (255, 255, 255), w)
+    centered_text(d, 112, "v" + VERSION + " · AutoCAD · ZWCAD", font(False, 10), LIGHT_BLUE, w)
+    d.line((42, 138, w - 42, 138), fill=lerp(HEADER_START, (255, 255, 255), 0.45), width=1)
     avatar = round_photo(74, 3)
-    img.paste(avatar, ((w - avatar.size[0]) // 2, 168), avatar)
-    centered_text(d, 256, "Kushmuratov Oybek", font(True, 11), (255, 255, 255), w)
-    centered_text(d, 274, "Muallif · Автор · Author", font(False, 9), LIGHT_BLUE, w)
+    img.paste(avatar, ((w - avatar.size[0]) // 2, 150), avatar)
+    centered_text(d, 236, "Kushmuratov Oybek", font(True, 11), (255, 255, 255), w)
+    centered_text(d, 253, "Muallif · Автор · Author", font(False, 9), LIGHT_BLUE, w)
+    # Requests and suggestions (same number as AppInfo.Phone in src/AutoPDF.Core/Localization/L.cs)
+    d.line((42, 274, w - 42, 274), fill=lerp(HEADER_START, (255, 255, 255), 0.45), width=1)
+    centered_text(d, 281, "Taklif · Предложения · Ideas", font(False, 8), LIGHT_BLUE, w)
+    centered_text(d, 294, PHONE, font(True, 11), (255, 255, 255), w)
     return img
 
 

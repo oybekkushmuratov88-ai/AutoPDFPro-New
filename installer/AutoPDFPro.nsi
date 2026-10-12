@@ -32,10 +32,11 @@ SetCompressor /SOLID lzma
 RequestExecutionLevel admin
 
 !ifndef VERSION
-  !define VERSION "3.0.1"
+  !define VERSION "3.0.2"
 !endif
 !define PRODUCT "AutoPDF Pro"
 !define AUTHOR "Kushmuratov Oybek"
+!define PHONE "+998 93 109 12 28"
 !define COPYRIGHT_YEAR "2026"
 !define BUNDLE_NAME "AutoPDFPro.bundle"
 !define BUNDLE_PATH "$PROGRAMFILES64\Autodesk\ApplicationPlugins\${BUNDLE_NAME}"
@@ -633,6 +634,8 @@ Section "-Finish" SecFinish
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${PRODUCT} (AutoCAD, ZWCAD)"
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${AUTHOR}"
+  WriteRegStr HKLM "${UNINST_KEY}" "HelpTelephone" "${PHONE}"
+  WriteRegStr HKLM "${UNINST_KEY}" "Contact" "${AUTHOR}, ${PHONE}"
   WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\Uninstall.exe,0"
   WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'

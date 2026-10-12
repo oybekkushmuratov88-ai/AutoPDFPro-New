@@ -17,6 +17,9 @@ namespace AutoPDF.Core.Localization
         public const string Product = "AutoPDF Pro";
         public const string Author = "Kushmuratov Oybek";
         public const int CopyrightYear = 2026;
+
+        /// <summary>The author's phone for requests and suggestions (About window, installer, "Apps" entry).</summary>
+        public const string Phone = "+998 93 109 12 28";
     }
 
     /// <summary>
@@ -165,5 +168,10 @@ namespace AutoPDF.Core.Localization
             "© {0} {1}. Barcha huquqlar himoyalangan.",
             "© {0} {1}. Все права защищены.",
             "© {0} {1}. All rights reserved."), AppInfo.CopyrightYear, AppInfo.Author);
+
+        public static string ContactLine => T(
+            "Taklif va murojaatlar uchun: ",
+            "Предложения и пожелания: ",
+            "Requests and suggestions: ") + AppInfo.Phone;
     }
 }
